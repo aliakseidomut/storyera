@@ -1,11 +1,19 @@
 import { API_CONFIG } from '../constants/api.js';
 
 // ============================================
-// AI SERVICE
+// AI SERVICE - Native Gemini API Implementation
 // ============================================
 export const aiService = {
-  // Get AI response from Gemini via Hugging Face Chat Completions API
+  
+  // Get AI response using native Gemini API format
   async getAIResponse(userMessage, storyContext, characterData, naughtinessLevel) {
+    const apiKey = API_CONFIG.getApiKey();
+    
+    if (!apiKey) {
+      console.error('Gemini API key not configured');
+      return "API key not configured. Please add your Gemini API key.";
+    }
+
     const systemPrompt = `You are an interactive storytelling AI. Create engaging, immersive narratives based on user choices. 
     Story: ${storyContext}
     Character: ${characterData.name}, ${characterData.gender}, ${characterData.age}, ${characterData.archetype}, traits: ${characterData.traits.join(', ')}
@@ -15,50 +23,51 @@ export const aiService = {
     Create tension, mystery, or romance based on the story context. Continue the narrative based on what the user says or does.`;
 
     try {
-      const headers = {
-        'Authorization': 'Bearer reloadKey',
-        'Content-Type': 'application/json'
-      };
-
-      const response = await fetch(API_CONFIG.BASE_URL, {
+      const response = await fetch(`${API_CONFIG.BASE_URL}/${API_CONFIG.MODEL}:generateContent?key=${apiKey}`, {
         method: 'POST',
-        headers: headers,
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
-          model: API_CONFIG.MODEL,
-          messages: [
-            {
-              role: 'system',
-              content: systemPrompt
-            },
+          contents: [
             {
               role: 'user',
-              content: userMessage
+              parts: [
+                { text: systemPrompt },
+                { text: userMessage }
+              ]
             }
           ],
-          temperature: API_CONFIG.DEFAULT_TEMPERATURE
+          generationConfig: {
+            temperature: API_CONFIG.DEFAULT_TEMPERATURE,
+            maxOutputTokens: 1024,
+            topP: 0.95,
+            topK: 40
+          }
         })
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API Error Response:', errorText);
-        throw new Error(`API Error: ${response.status} ${response.statusText}`);
+        const errorData = await response.json();
+        console.error('Gemini API Error:', errorData);
+        throw new Error(`API Error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
       }
 
       const data = await response.json();
-      console.log('AI Response:', data);
+      console.log('Gemini Response:', data);
       
-      const text = data.choices?.[0]?.message?.content;
+      // Extract text from Gemini response format
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
       
       if (!text) {
-        console.warn('No content in AI response');
+        console.warn('No content in Gemini response');
         return "The story continues... Your choice shapes what happens next.";
       }
       
       return text;
     } catch (error) {
       console.error('AI Error:', error);
-      return "I encountered an error while generating the response. Please try again.";
+      return `Error: ${error.message}. Please check your API configuration.`;
     }
   },
 
@@ -68,41 +77,44 @@ export const aiService = {
       return 'Custom Story';
     }
 
-    try {
-      const headers = {
-        'Authorization': 'Bearer reloadKey',
-        'Content-Type': 'application/json'
-      };
+    const apiKey = API_CONFIG.getApiKey();
+    
+    if (!apiKey) {
+      return 'Custom Story';
+    }
 
-      const response = await fetch(API_CONFIG.BASE_URL, {
+    try {
+      const response = await fetch(`${API_CONFIG.BASE_URL}/${API_CONFIG.MODEL}:generateContent?key=${apiKey}`, {
         method: 'POST',
-        headers: headers,
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
-          model: API_CONFIG.MODEL,
-          messages: [
+          contents: [
             {
-              role: 'system',
-              content: 'You are a creative writer. Generate short, catchy story titles (maximum 3-4 words). Return only the title, nothing else.'
-            },
-            {
-              role: 'user',
-              content: `Create a short, catchy title (max 3-4 words) for this story: ${storyPrompt}. Only return the title, no explanations.`
+              parts: [
+                { 
+                  text: 'You are a creative writer. Generate short, catchy story titles (maximum 3-4 words). Return only the title, nothing else.' 
+                },
+                { 
+                  text: `Create a short, catchy title (max 3-4 words) for this story: ${storyPrompt}. Only return the title, no explanations.` 
+                }
+              ]
             }
           ],
-          temperature: API_CONFIG.DEFAULT_TEMPERATURE
+          generationConfig: {
+            temperature: API_CONFIG.DEFAULT_TEMPERATURE,
+            maxOutputTokens: 50
+          }
         })
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Title API Error Response:', errorText);
         throw new Error(`API Error: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('Title Generation Response:', data);
-      
-      const title = data.choices?.[0]?.message?.content?.trim();
+      const title = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
       
       if (!title || title.length > 50) {
         return 'Custom Story';
