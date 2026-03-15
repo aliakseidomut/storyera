@@ -113,6 +113,42 @@ export default function Character({ characterData, setCharacterData, onContinue,
             ))}
           </div>
         </div>
+
+        <div>
+          <label className="block text-xs font-bold text-stone-500 uppercase mb-2">
+            Flirt Level: {characterData.flirtLevel || 50}%
+          </label>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={characterData.flirtLevel || 50}
+            onChange={(e) => setCharacterData(prev => ({ ...prev, flirtLevel: parseInt(e.target.value) }))}
+            className="w-full h-2 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-orange-500"
+          />
+          <div className="flex justify-between text-xs text-stone-400 mt-1">
+            <span>Reserved</span>
+            <span>Bold</span>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-stone-500 uppercase mb-2">
+            Boundaries Level: {characterData.boundariesLevel || 50}%
+          </label>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={characterData.boundariesLevel || 50}
+            onChange={(e) => setCharacterData(prev => ({ ...prev, boundariesLevel: parseInt(e.target.value) }))}
+            className="w-full h-2 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-orange-500"
+          />
+          <div className="flex justify-between text-xs text-stone-400 mt-1">
+            <span>Open</span>
+            <span>Guarded</span>
+          </div>
+        </div>
       </div>
 
       <button

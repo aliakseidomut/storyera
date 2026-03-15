@@ -36,8 +36,27 @@ export default function App() {
     gender: 'Male',
     age: '18-25',
     archetype: 'Survivor',
-    traits: ['bold', 'mysterious']
+    traits: ['bold', 'mysterious'],
+    flirtLevel: 50,
+    boundariesLevel: 50
   });
+
+  // Story state for tracking hidden parameters
+  const [storyState, setStoryState] = useState({
+    trust: 50,
+    attraction: 50,
+    tension: 30,
+    mystery: 70,
+    control: 50,
+    risk: 30,
+    boundaries: 50,
+    pressure: 30,
+    emotional_stability: 50
+  });
+
+  const [currentChoices, setCurrentChoices] = useState([]);
+  const [lastSceneSummary, setLastSceneSummary] = useState('');
+  const [lastUserChoice, setLastUserChoice] = useState('');
 
   // Load data on mount
   useEffect(() => {
@@ -84,6 +103,22 @@ export default function App() {
 
   const startChat = () => {
     setChatMessages([]);
+    setCurrentChoices([]);
+    setLastSceneSummary('');
+    setLastUserChoice('');
+    
+    // Reset story state to initial values
+    setStoryState({
+      trust: 50,
+      attraction: 50,
+      tension: 30,
+      mystery: 70,
+      control: 50,
+      risk: 30,
+      boundaries: 50,
+      pressure: 30,
+      emotional_stability: 50
+    });
     
     // Используем готовый сюжет из базы данных
     const story = currentStory || STORY_DATABASE.stories[0];
@@ -109,30 +144,60 @@ export default function App() {
 
   const handleSendMessage = async (message) => {
     setChatMessages(prev => [...prev, { role: 'user', content: message }]);
+    setLastUserChoice(message);
+    setCurrentChoices([]); // Clear previous choices
     setIsTyping(true);
 
-    // Формируем контекст истории из предыдущих сообщений
-    const conversationHistory = chatMessages.map(m => `${m.role === 'user' ? 'User' : 'Narrator'}: ${m.content}`).join('\n');
-    const storyContext = `Story: ${currentStory?.title || 'Custom Story'}\nDescription: ${currentStory?.description || ''}\n\nPrevious conversation:\n${conversationHistory}`;
+    // Build conversation history for context
+    const conversationHistory = chatMessages.map(m => ({
+      role: m.role === 'user' ? 'user' : 'assistant',
+      content: m.content
+    }));
+
+    // Build story context
+    const storyContext = `Story: ${currentStory?.title || 'Custom Story'}\nDescription: ${currentStory?.description || ''}`;
     
-    const response = await aiService.getAIResponse(
-      message, 
-      storyContext, 
-      characterData, 
-      naughtinessLevel
-    );
+    // Determine scenario brief based on story
+    const scenarioBrief = currentStory?.description || storyContext;
+    
+    const response = await aiService.getAIResponse(message, {
+      storyContext,
+      characterData,
+      scenarioBrief,
+      storyState,
+      lastSceneSummary,
+      lastUserChoice: message,
+      conversationHistory,
+      flirtLevel: characterData.flirtLevel || 50,
+      boundariesLevel: characterData.boundariesLevel || 50
+    });
     
     setIsTyping(false);
+    
+    // Update story state (simplified - in real implementation, AI could return state updates)
+    // For now, we'll update based on user choices heuristically
+    
+    // Extract scene and choices from response
+    const sceneText = response.scene || response;
+    const choices = response.choices || [];
+    
+    // Update last scene summary
+    setLastSceneSummary(sceneText.substring(0, 200)); // Store first 200 chars as summary
     
     // Save to database
     await DatabaseService.saveChatHistory(
       currentStory?.id, 
-      [...chatMessages, { role: 'user', content: message }, { role: 'ai', content: response }]
+      [...chatMessages, { role: 'user', content: message }, { role: 'ai', content: sceneText }]
     );
     
     setTimeout(() => {
-      addAIMessage(response);
+      addAIMessage(sceneText);
+      setCurrentChoices(choices);
     }, 300);
+  };
+
+  const handleChoiceSelect = (choice) => {
+    handleSendMessage(choice);
   };
 
   // Story Generation
@@ -213,8 +278,10 @@ export default function App() {
               story={currentStory}
               chatMessages={chatMessages}
               isTyping={isTyping}
+              choices={currentChoices}
               onBack={() => goToStoryDetail(currentStory)}
               onSendMessage={handleSendMessage}
+              onChoiceSelect={handleChoiceSelect}
             />
           )}
         </main>

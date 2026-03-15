@@ -4,8 +4,10 @@ export default function Chat({
   story, 
   chatMessages, 
   isTyping, 
+  choices = [],
   onBack, 
-  onSendMessage 
+  onSendMessage,
+  onChoiceSelect
 }) {
   const chatContainerRef = useRef(null);
   const inputRef = useRef(null);
@@ -98,6 +100,25 @@ export default function Chat({
         )}
       </div>
 
+      {/* Choice buttons */}
+      {choices.length > 0 && !isTyping && (
+        <div className="px-4 py-3 bg-white border-t border-stone-100 space-y-2">
+          <p className="text-xs text-stone-500 mb-2 font-medium">Choose your response:</p>
+          <div className="space-y-2">
+            {choices.map((choice, index) => (
+              <button
+                key={index}
+                onClick={() => onChoiceSelect(choice)}
+                disabled={isTyping}
+                className="w-full text-left px-4 py-3 bg-stone-50 hover:bg-orange-50 border border-stone-200 hover:border-orange-300 rounded-xl text-sm font-medium text-stone-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {choice}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="p-4 bg-white border-t border-stone-100">
         <div className="flex gap-2">
           <input
@@ -105,7 +126,7 @@ export default function Chat({
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Type your message or action..."
+            placeholder={choices.length > 0 ? "Or type your own response..." : "Type your message or action..."}
             disabled={isTyping}
             className="flex-1 bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
           />
@@ -120,7 +141,9 @@ export default function Chat({
           </button>
         </div>
         <p className="text-xs text-stone-400 mt-2 text-center">
-          Continue the story by typing your actions or responses
+          {choices.length > 0 
+            ? "Select a choice above or type your own response"
+            : "Continue the story by typing your actions or responses"}
         </p>
       </form>
     </div>
