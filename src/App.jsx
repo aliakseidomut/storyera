@@ -4,22 +4,19 @@ import { aiService } from './services/aiService.js';
 import { STORY_DATABASE } from './data/mockDatabase.js';
 
 // Components
-import AgeGate from './components/AgeGate.jsx';
 import CreateModal from './components/CreateModal.jsx';
 import Header from './components/Header.jsx';
-import Landing from './components/Landing.jsx';
-import Character from './components/Character.jsx';
 import Library from './components/Library.jsx';
 import StoryDetail from './components/StoryDetail.jsx';
 import Chat from './components/Chat.jsx';
+import Auth from './components/Auth.jsx';
 
 // ============================================
 // MAIN APP COMPONENT
 // ============================================
 export default function App() {
   // State Management
-  const [currentView, setCurrentView] = useState('age-gate');
-  const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const [currentView, setCurrentView] = useState('library');
   const [currentStory, setCurrentStory] = useState(null);
   const [chatMessages, setChatMessages] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -30,6 +27,14 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const stored = localStorage.getItem('storyera_user');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
   
   const [characterData, setCharacterData] = useState({
     name: 'Alex',
@@ -84,21 +89,30 @@ export default function App() {
     loadStories();
   }, [searchQuery, selectedCategory]);
 
-  // Age Gate Functions
-  const handleEnterApp = () => {
-    if (ageConfirmed) {
-      setCurrentView('landing');
-    }
-  };
-
   // Navigation Functions
-  const goToCharacter = () => setCurrentView('character');
   const goToLibrary = () => setCurrentView('library');
-  const goToLanding = () => setCurrentView('landing');
 
   const goToStoryDetail = async (story) => {
     setCurrentStory(story);
     setCurrentView('story-detail');
+  };
+
+  const handleAuthSuccess = (user) => {
+    setCurrentUser(user);
+    setCurrentView('library');
+  };
+
+  const handleLogout = () => {
+    try {
+      localStorage.removeItem('storyera_user');
+    } catch {
+      // ignore storage errors
+    }
+    setCurrentUser(null);
+    setCurrentView('landing');
+    setCurrentStory(null);
+    setChatMessages([]);
+    setCurrentChoices([]);
   };
 
   const startChat = () => {
@@ -122,6 +136,11 @@ export default function App() {
     
     // Используем готовый сюжет из базы данных
     const story = currentStory || STORY_DATABASE.stories[0];
+
+    // Set character data from predefined protagonist for this story
+    if (story?.protagonist) {
+      setCharacterData(story.protagonist);
+    }
     const openingMessages = story?.plot?.opening || [
       "You receive a message from a number you don't recognize.",
       "Alex: You finally replied. I wasn't sure you would.",
@@ -228,33 +247,13 @@ export default function App() {
   return (
     <div className="bg-stone-200 min-h-screen w-screen flex items-center justify-center p-4">
       <div className="w-full h-full max-w-md bg-stone-50 shadow-2xl relative overflow-hidden flex flex-col rounded-2xl">
-        {currentView !== 'age-gate' && (
-          <Header />
-        )}
+        <Header currentUser={currentUser} onLogout={handleLogout} />
 
         <main className="flex-1 overflow-y-auto relative bg-stone-50">
-          {currentView === 'age-gate' && (
-            <AgeGate 
-              ageConfirmed={ageConfirmed}
-              setAgeConfirmed={setAgeConfirmed}
-              onEnter={handleEnterApp}
-            />
+          {!currentUser && (
+            <Auth onAuthSuccess={handleAuthSuccess} />
           )}
-          {currentView === 'landing' && (
-            <Landing 
-              onStartStory={goToCharacter}
-              onStoryClick={goToStoryDetail}
-            />
-          )}
-          {currentView === 'character' && (
-            <Character 
-              characterData={characterData}
-              setCharacterData={setCharacterData}
-              onContinue={goToLibrary}
-              onBack={goToLanding}
-            />
-          )}
-          {currentView === 'library' && (
+          {currentUser && (currentView === 'library' || currentView === 'landing') && (
             <Library 
               stories={stories}
               loading={loading}
@@ -263,17 +262,16 @@ export default function App() {
               selectedCategory={selectedCategory}
               setSelectedCategory={setSelectedCategory}
               onStoryClick={goToStoryDetail}
-              onCreateStory={() => setShowCreateModal(true)}
             />
           )}
-          {currentView === 'story-detail' && (
+          {currentUser && currentView === 'story-detail' && (
             <StoryDetail 
               story={currentStory}
               onBack={goToLibrary}
               onStartStory={startChat}
             />
           )}
-          {currentView === 'chat' && (
+          {currentUser && currentView === 'chat' && (
             <Chat 
               story={currentStory}
               chatMessages={chatMessages}

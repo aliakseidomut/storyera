@@ -35,7 +35,7 @@ export default function Chat({
   };
 
   return (
-    <div className="h-full flex flex-col animate-fade-in bg-stone-50">
+    <div className="h-full flex flex-col animate-fade-in bg-stone-100">
       <div className="px-4 py-3 bg-white border-b border-stone-100 flex items-center gap-3 shadow-sm z-10">
         <button
           onClick={onBack}
@@ -56,48 +56,33 @@ export default function Chat({
 
       <div
         ref={chatContainerRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4 bg-stone-100/50"
+        className="flex-1 overflow-y-auto p-4 bg-stone-100"
       >
-        <div className="flex justify-center my-4">
-          <img
-            src={story?.image}
-            className="w-full max-w-xs rounded-xl shadow-md border border-stone-200"
-            alt="Scene"
-          />
+        <div className="max-w-xl mx-auto bg-white rounded-2xl shadow-sm border border-stone-200 p-5 md:p-6 space-y-4">
+          <div className="w-full mb-2">
+            <img
+              src={story?.image}
+              className="w-full max-h-56 object-cover rounded-xl shadow-sm border border-stone-200"
+              alt={story?.title || 'Scene'}
+            />
+          </div>
+
+          <div className="space-y-3 text-sm leading-relaxed text-stone-800">
+            {chatMessages
+              .filter((msg) => msg.role !== 'user')
+              .map((msg, idx) => (
+                <p key={idx} className="whitespace-pre-wrap">
+                  {msg.content}
+                </p>
+              ))}
+
+            {isTyping && (
+              <p className="text-xs text-stone-400 italic">
+                The story is unfolding<span className="animate-pulse">...</span>
+              </p>
+            )}
+          </div>
         </div>
-        
-        {chatMessages.map((msg, idx) => (
-          <div
-            key={idx}
-            className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''} animate-fade-in`}
-          >
-            <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold ${
-              msg.role === 'user' ? 'bg-orange-500 text-white' : 'bg-stone-200 text-stone-500'
-            }`}>
-              {msg.role === 'user' ? 'Me' : 'AI'}
-            </div>
-            <div className={`p-3 rounded-2xl shadow-sm text-sm max-w-[80%] ${
-              msg.role === 'user'
-                ? 'bg-orange-500 text-white rounded-tr-none'
-                : 'bg-white text-stone-700 rounded-tl-none'
-            }`}>
-              <p className="whitespace-pre-wrap">{msg.content}</p>
-            </div>
-          </div>
-        ))}
-        
-        {isTyping && (
-          <div className="flex gap-3 animate-fade-in">
-            <div className="w-8 h-8 rounded-full bg-stone-200 flex-shrink-0 flex items-center justify-center text-xs font-bold text-stone-500">AI</div>
-            <div className="bg-white p-3 rounded-2xl rounded-tl-none shadow-sm">
-              <div className="flex gap-1">
-                <span className="w-2 h-2 bg-stone-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-2 h-2 bg-stone-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-2 h-2 bg-stone-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Choice buttons */}

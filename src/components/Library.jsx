@@ -7,8 +7,7 @@ export default function Library({
   setSearchQuery, 
   selectedCategory, 
   setSelectedCategory, 
-  onStoryClick, 
-  onCreateStory 
+  onStoryClick
 }) {
   return (
     <div className="h-full flex flex-col animate-fade-in">
@@ -28,16 +27,10 @@ export default function Library({
       </div>
 
       <div className="flex px-6 pt-4 gap-4 overflow-x-auto sticky top-[73px] bg-stone-50 z-10 pb-2">
-        {CATEGORIES.map((category) => (
+        {CATEGORIES.filter(category => category !== 'Custom').map((category) => (
           <button
             key={category}
-            onClick={() => {
-              if (category === 'Custom') {
-                onCreateStory();
-              } else {
-                setSelectedCategory(category);
-              }
-            }}
+            onClick={() => setSelectedCategory(category)}
             className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap ${
               selectedCategory === category || (category === 'All' && selectedCategory === 'All')
                 ? 'bg-stone-800 text-white'
@@ -61,7 +54,12 @@ export default function Library({
           <>
             <div className="space-y-2">
               <h3 className="font-bold text-sm text-stone-400 uppercase tracking-wider">From Database</h3>
-              {stories.map(story => (
+              {stories.map(story => {
+                const full = story.description || '';
+                const short =
+                  full.length > 160 ? `${full.slice(0, 160).trimEnd()}.` : full;
+
+                return (
                 <div
                   key={story.id}
                   className="bg-white rounded-2xl overflow-hidden shadow-sm border border-stone-100 cursor-pointer hover:shadow-md transition-all"
@@ -78,7 +76,7 @@ export default function Library({
                   </div>
                   <div className="p-4">
                     <h4 className="font-bold text-lg">{story.title}</h4>
-                    <p className="text-sm text-stone-500 mt-1">{story.description}</p>
+                    <p className="text-sm text-stone-500 mt-1">{short}</p>
                     <div className="flex items-center gap-4 mt-3">
                       <span className="text-xs text-stone-400">⭐️ {story.rating}</span>
                       <span className="text-xs text-stone-400">👁 {story.plays.toLocaleString()}</span>
@@ -86,29 +84,10 @@ export default function Library({
                     <button className="mt-3 w-full py-2 bg-stone-900 text-white rounded-lg text-sm font-bold">Start</button>
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
 
-            <div
-              className="bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl p-6 text-white shadow-lg cursor-pointer"
-              onClick={onCreateStory}
-            >
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="font-bold text-lg">Create Custom Story</h3>
-                  <p className="text-orange-100 text-xs mt-1">Generate unique scenarios with AI</p>
-                </div>
-                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                </div>
-              </div>
-              <div className="w-full bg-white/20 rounded-full h-1.5 mt-2">
-                <div className="bg-white h-1.5 rounded-full w-3/4" />
-              </div>
-              <p className="text-[10px] text-orange-100 mt-2 text-right">Beta Access</p>
-            </div>
+            {/* Custom story creation card removed */}
           </>
         )}
       </div>
