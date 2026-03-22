@@ -5,26 +5,34 @@ export default function Chat({
   chatMessages, 
   isTyping, 
   choices = [],
+  choicesCount,
+  isPremium,
+  onPayment,
   onBack, 
   onSendMessage,
-  onChoiceSelect
+  onChoiceSelect,
+  language = 'en'
 }) {
+  const isRu = language === 'ru';
+  const t = {
+    aiActive: isRu ? 'AI активен' : 'AI Active',
+    unfolding: isRu ? 'История продолжается' : 'The story is unfolding',
+    unlockPremium: isRu ? 'Открой Premium за $9.90' : 'Unlock Premium for $9.90',
+    buyPremium: isRu ? 'Купить Premium' : 'Buy Premium',
+    chooseResponse: isRu ? 'Выберите ответ:' : 'Choose your response:',
+    placeholderDefault: isRu ? 'Введите сообщение...' : 'Type your message...',
+  };
   const chatContainerRef = useRef(null);
   const inputRef = useRef(null);
   const [inputValue, setInputValue] = useState('');
+
+  const isLocked = choicesCount >= 3 && !isPremium;
 
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [chatMessages, isTyping]);
-
-  useEffect(() => {
-    // Фокус на поле ввода после загрузки
-    if (inputRef.current && chatMessages.length > 0) {
-      inputRef.current.focus();
-    }
-  }, [chatMessages.length]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -35,69 +43,63 @@ export default function Chat({
   };
 
   return (
-    <div className="h-full flex flex-col animate-fade-in bg-black">
-      <div className="px-4 py-3 bg-black border-b border-stone-800 flex items-center gap-3 shadow-sm z-10">
-        <button
-          onClick={onBack}
-          className="text-stone-400 hover:text-white"
-        >
+    <div className="h-full flex flex-col animate-fade-in bg-background text-foreground">
+      <div className="px-4 py-3 bg-background border-b border-border flex items-center gap-3 z-10">
+        <button onClick={onBack} className="p-2 text-muted-foreground hover:text-foreground transition-colors">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
         <div className="flex-1">
-          <h3 className="font-bold text-white text-sm">{story?.title}</h3>
-          <p className="text-xs text-stone-400 flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-green-500" />
-            <span>AI Active</span>
+          <h3 className="font-bold text-foreground text-sm">{story?.title}</h3>
+          <p className="text-xs text-muted-foreground flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-primary" />
+            <span>{t.aiActive}</span>
           </p>
         </div>
       </div>
 
-      <div
-        ref={chatContainerRef}
-        className="flex-1 overflow-y-auto p-4 bg-black"
-      >
-        <div className="max-w-xl mx-auto bg-stone-900 rounded-2xl shadow-sm border border-stone-800 p-5 md:p-6 space-y-4">
-          <div className="w-full mb-2">
-            <img
-              src={story?.image}
-              className="w-full max-h-56 object-cover rounded-xl shadow-sm border border-stone-800"
-              alt={story?.title || 'Scene'}
-            />
-          </div>
-
-          <div className="space-y-3 text-sm leading-relaxed text-stone-100">
+      <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 bg-background">
+        <div className="max-w-xl mx-auto bg-card border border-border p-5 md:p-6 space-y-4 rounded-2xl shadow-lg">
+          <img
+            src={story?.image}
+            className="w-full max-h-56 object-cover rounded-2xl border border-border"
+            alt={story?.title || 'Scene'}
+          />
+          <div className="space-y-3 text-sm leading-relaxed text-foreground">
             {chatMessages
               .filter((msg) => msg.role !== 'user')
               .map((msg, idx) => (
-                <p key={idx} className="whitespace-pre-wrap">
-                  {msg.content}
-                </p>
+                <p key={idx} className="whitespace-pre-wrap">{msg.content}</p>
               ))}
-
             {isTyping && (
-              <p className="text-xs text-stone-400 italic">
-                The story is unfolding<span className="animate-pulse">...</span>
+              <p className="text-xs text-muted-foreground italic">
+                {t.unfolding}<span className="animate-pulse">...</span>
               </p>
             )}
           </div>
         </div>
       </div>
 
-      {/* Payment gate temporarily disabled */}
+      {isLocked && (
+          <div className="px-4 py-3 bg-primary text-primary-foreground flex items-center justify-between shadow-lg">
+            <span className="text-sm font-semibold">{t.unlockPremium}</span>
+            <button onClick={onPayment} className="px-4 py-2 bg-card text-foreground rounded-full text-xs font-bold hover:bg-muted transition-colors">
+              {t.buyPremium}
+            </button>
+          </div>
+      )}
 
-      {/* Choice buttons */}
-      {choices.length > 0 && !isTyping && (
-        <div className="px-4 py-3 bg-black border-t border-stone-800 space-y-2">
-          <p className="text-xs text-stone-400 mb-2 font-medium">Choose your response:</p>
+      {!isLocked && choices.length > 0 && !isTyping && (
+        <div className="px-4 py-3 bg-background border-t border-border space-y-2">
+          <p className="text-xs text-muted-foreground mb-2 font-medium">{t.chooseResponse}</p>
           <div className="space-y-2">
             {choices.map((choice, index) => (
               <button
                 key={index}
                 onClick={() => onChoiceSelect(choice)}
                 disabled={isTyping}
-                className="w-full text-left px-4 py-3 bg-stone-950 hover:bg-brand/20 border border-stone-700 hover:border-brand rounded-xl text-sm font-medium text-stone-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full text-left px-4 py-4 bg-card border border-border rounded-2xl text-sm font-medium text-foreground hover:border-primary transition-all disabled:opacity-50"
               >
                 {choice}
               </button>
@@ -106,33 +108,30 @@ export default function Chat({
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="p-4 bg-black border-t border-stone-800">
-        <div className="flex gap-2">
-          <input
-            ref={inputRef}
-            type="text"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            placeholder={choices.length > 0 ? "Or type your own response..." : "Type your message or action..."}
-            disabled={isTyping}
-            className="flex-1 bg-stone-950 border border-stone-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand disabled:opacity-50 disabled:cursor-not-allowed text-white placeholder-stone-600"
-          />
-          <button
-            type="submit"
-            disabled={!inputValue.trim() || isTyping}
-            className="px-6 py-3 bg-brand text-white rounded-xl font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-            </svg>
-          </button>
-        </div>
-        <p className="text-xs text-stone-400 mt-2 text-center">
-          {choices.length > 0 
-            ? "Select a choice above or type your own response"
-            : "Continue the story by typing your actions or responses"}
-        </p>
-      </form>
+      {!isLocked && (
+        <form onSubmit={handleSubmit} className="p-4 bg-background border-t border-border">
+          <div className="flex gap-2">
+            <input
+              ref={inputRef}
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder={t.placeholderDefault}
+              disabled={isTyping}
+              className="flex-1 bg-input border border-border rounded-2xl px-4 py-4 text-sm text-foreground focus:ring-2 focus:ring-primary outline-none"
+            />
+            <button 
+              type="submit" 
+              disabled={!inputValue.trim() || isTyping}
+              className="px-6 py-4 bg-primary text-primary-foreground rounded-2xl font-bold hover:opacity-90 disabled:opacity-50 transition"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              </svg>
+            </button>
+          </div>
+        </form>
+      )}
     </div>
   );
 }

@@ -23,10 +23,24 @@ export class DatabaseService implements OnModuleInit {
       `);
 
       this.db.run(`
-        CREATE TABLE IF NOT EXISTS user_verifications (
+        CREATE TABLE IF NOT EXISTS pending_users (
           email TEXT PRIMARY KEY,
-          code TEXT NOT NULL,
-          expires_at TEXT NOT NULL
+          password_hash TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        )
+      `);
+
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS user_story_progress (
+          user_id INTEGER NOT NULL,
+          story_id INTEGER NOT NULL,
+          chat_history TEXT,
+          story_state TEXT,
+          choices_count INTEGER DEFAULT 0,
+          last_scene_summary TEXT,
+          last_user_choice TEXT,
+          updated_at TEXT,
+          PRIMARY KEY(user_id, story_id)
         )
       `);
 
@@ -181,52 +195,7 @@ export class DatabaseService implements OnModuleInit {
           scenarioBrief:
             'VAMPIRE WORLD: Modern city ruled from the shadows by ancient clans, political games, blood pacts, and dangerous attraction between predator and human.',
         },
-      },
-      {
-        id: 4,
-        title: 'Path of the White Wolf',
-        description:
-          'You are a monster hunter for hire, used to contracts that end with a corpse, a coin purse and silence. This village, though, smells not only of fear and old blood, but of a sorceress who has turned more of your jobs into personal history than you will ever admit. Every new monster here feels like just another excuse for the two of you to test how much you can endure from each other.',
-        category: 'Fantasy',
-        tags: ['witcher-inspired', 'dark-fantasy', 'contracts', 'morality'],
-        image: 'https://images.unsplash.com/photo-1528110040200-47c5fa768c1c?auto=format&fit=crop&w=800&q=80',
-        rating: 4.9,
-        plays: 12030,
-        mature: true,
-        createdAt: '2024-03-20',
-        protagonist: {
-          name: 'Geralt-like',
-          gender: 'Male',
-          age: '36-50',
-          archetype: 'Monster Hunter',
-          traits: ['stoic', 'dry-witted', 'protective'],
-          flirtLevel: 35,
-          boundariesLevel: 80,
-        },
-        characters: [
-          {
-            name: 'You',
-            role: 'A mutated monster hunter whose body is built for surviving claws and curses, but who is much worse at surviving complicated feelings and long‑standing debts.',
-          },
-          {
-            name: 'Yennefer-like',
-            role: 'A powerful sorceress whose magic is as precise as her cruelty can be, always turning each contract into a new round of an old, unfinished argument between you.',
-          },
-          {
-            name: 'Villagers',
-            role: 'Desperate people who hire you for “a simple monster problem” while hiding the kind of human ugliness no bestiary ever warns about.',
-          },
-        ],
-        plot: {
-          opening: [
-            'The village smells of wet straw, old fear, and something metallic under the wind.',
-            'Children stare from doorways as you pass, tracing the scars along your jaw like a story they were warned not to read.',
-            'At the edge of the square she waits — black hair, white hands, violet eyes that say this contract is about anything but the monster.',
-          ],
-          scenarioBrief:
-            'WITCHER-INSPIRED: Gritty medieval world with monsters, moral ambiguity, political tension and a deep, complicated bond between a monster hunter and a sorceress.',
-        },
-      },
+      }
     ];
 
     this.db.get('SELECT COUNT(*) as cnt FROM stories', (err, row: any) => {
@@ -267,4 +236,3 @@ export class DatabaseService implements OnModuleInit {
     });
   }
 }
-

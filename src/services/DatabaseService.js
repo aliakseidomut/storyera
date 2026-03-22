@@ -1,60 +1,53 @@
-import { STORY_DATABASE } from '../data/mockDatabase.js';
-
 // ============================================
-// DATABASE SERVICE (Replace with kyarapu.com API)
+// DATABASE SERVICE (Fetch from Real API)
 // ============================================
 export const DatabaseService = {
   // Get all stories
   async getStories(filters = {}) {
-    // TODO: Replace with actual API call to kyarapu.com
-    let stories = [...STORY_DATABASE.stories];
-    
-    if (filters.category) {
-      stories = stories.filter(s => s.category === filters.category);
-    }
-    if (filters.mature !== undefined) {
-      stories = stories.filter(s => s.mature === filters.mature);
-    }
-    if (filters.search) {
-      stories = stories.filter(s => 
-        s.title.toLowerCase().includes(filters.search.toLowerCase()) ||
-        s.description.toLowerCase().includes(filters.search.toLowerCase())
-      );
-    }
-    
-    return stories;
-  },
-
-  // Get story by ID
-  async getStoryById(id) {
-    // TODO: Replace with actual API call
-    return STORY_DATABASE.stories.find(s => s.id === id);
-  },
-
-  // Create new story
-  async createStory(storyData) {
-    // TODO: Replace with actual API call
-    const newStory = {
-      id: STORY_DATABASE.stories.length + 1,
-      ...storyData,
-      rating: 0,
-      plays: 0,
-      createdAt: new Date().toISOString().split('T')[0]
-    };
-    STORY_DATABASE.stories.push(newStory);
-    return newStory;
+    const response = await fetch('/api/stories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(filters)
+    });
+    return await response.json();
   },
 
   // Save chat history
   async saveChatHistory(storyId, messages) {
-    // TODO: Replace with actual API call
+    // Keep in localStorage or local state, or save to backend if needed
     console.log('Saving chat history for story:', storyId, messages);
     return { success: true };
   },
 
-  // Get user profile
-  async getUserProfile(userId) {
-    // TODO: Replace with actual API call
-    return STORY_DATABASE.users.find(u => u.id === userId);
+  async saveProgress(userId, storyId, progress) {
+    const response = await fetch('/api/save-progress', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, story_id: storyId, progress })
+    });
+    return response.json();
+  },
+
+  async getProgress(userId, storyId) {
+    const response = await fetch('/api/get-progress', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, story_id: storyId })
+    });
+    return response.json();
+  },
+
+  async getAllProgress(userId) {
+    const response = await fetch('/api/all-progress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId })
+    });
+    return response.json();
+  },
+
+  async createStory(storyData) {
+    // Placeholder - usually admin feature or not implemented yet
+    return { id: Math.floor(Math.random() * 1000) };
   }
 };

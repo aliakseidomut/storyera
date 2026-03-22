@@ -1,5 +1,16 @@
 import { Body, Controller, Post, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import Stripe from 'stripe';
+
+const stripeKey = process.env.STRIPE_KEY;
+if (!stripeKey) {
+  // Do not start Stripe if key is missing; endpoints depending on it will throw clearly
+  // eslint-disable-next-line no-console
+  console.error('Missing STRIPE_KEY in environment. Stripe checkout endpoints will fail until it is set.');
+}
+const stripe = stripeKey
+  ? new Stripe(stripeKey, { apiVersion: '2024-06-20' as any })
+  : (null as unknown as Stripe);
 
 class AuthDto {
   email!: string;
@@ -29,6 +40,26 @@ export class AuthController {
     return this.authService.verify(body.email, body.code);
   }
 
+  @Post('stories')
+  async getStories() {
+    return this.authService.getStories();
+  }
+
+  @Post('all-progress')
+  async getAllProgress(@Body() body: { user_id: number }) {
+    return this.authService.getAllProgress(body.user_id);
+  }
+
+  @Post('save-progress')
+  async saveProgress(@Body() body: any) {
+    return this.authService.saveProgress(body.user_id, body.story_id, body.progress);
+  }
+
+  @Post('get-progress')
+  async getProgress(@Body() body: { user_id: number; story_id: number }) {
+    return this.authService.getProgress(body.user_id, body.story_id);
+  }
+
   @Post('forgot-password')
   async forgotPassword(@Body() body: { email: string }) {
     return this.authService.forgotPassword(body.email);
@@ -55,14 +86,41 @@ export class AuthController {
     return { isPremium: user?.is_premium || false };
   }
 
-  // Payments are temporarily disabled.
-  // @Post('create-checkout-session')
-  // async createCheckoutSession(@Body() body: { email: string }) {
-  //   return { message: 'Payments are temporarily disabled' };
-  // }
+  @Post('create-checkout-session')
+  async createCheckoutSession(@Body() body: { email: string }) {
+    if (!stripeKey || !stripe) {
+      throw new Error('Stripe is not configured. Please set STRIPE_KEY in .env');
+    }
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: 'usd',
+          product_data: { 
+            name: 'Premium Storyera',
+            description: 'Premium subscription for Storyera store'
+          },
+          unit_amount: 990,
+        },
+        quantity: 1,
+      }],
+      mode: 'payment',
+      success_url: 'https://storiera.run.place/success?session_id={CHECKOUT_SESSION_ID}&email=' + encodeURIComponent(body.email),
+      cancel_url: 'https://storiera.run.place/cancel',
+    });
+    return { url: session.url };
+  }
 
-  // @Post('verify-payment')
-  // async verifyPayment(@Body() body: { session_id: string; email: string }) {
-  //   return { message: 'Payments are temporarily disabled' };
-  // }
+  @Post('verify-payment')
+  async verifyPayment(@Body() body: { session_id: string; email: string }) {
+    if (!stripeKey || !stripe) {
+      throw new Error('Stripe is not configured. Please set STRIPE_KEY in .env');
+    }
+    const session = await stripe.checkout.sessions.retrieve(body.session_id);
+    if (session.payment_status === 'paid') {
+      await this.authService.updatePremium(body.email);
+      return { success: true };
+    }
+    throw new Error('Payment not completed');
+  }
 }

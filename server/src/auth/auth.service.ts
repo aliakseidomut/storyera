@@ -1,6 +1,7 @@
 import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/common';
 import { DatabaseService } from '../db/database.service';
 import bcrypt from 'bcryptjs';
+import * as nodemailer from 'nodemailer';
 
 export interface UserRecord {
   id: number;
@@ -13,7 +14,33 @@ export interface UserRecord {
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly dbService: DatabaseService) {}
+  private transporter: nodemailer.Transporter;
+
+  constructor(private readonly dbService: DatabaseService) {
+    this.transporter = nodemailer.createTransport({
+      host: 'smtp.resend.com',
+      port: 465,
+      secure: true,
+      auth: {
+        user: 'resend',
+        pass: process.env.RESEND_API_KEY,
+      },
+    });
+  }
+
+  async sendVerificationEmail(email: string, code: string) {
+    try {
+      await this.transporter.sendMail({
+        from: 'onboarding@resend.dev',
+        to: email,
+        subject: 'Verification Code for Storyera',
+        text: `Your verification code is: ${code}`,
+        html: `<p>Your verification code is: <strong>${code}</strong></p>`,
+      });
+    } catch (error) {
+      console.error('Failed to send email:', error);
+    }
+  }
 
   async register(email: string, password: string) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -32,9 +59,9 @@ export class AuthService {
     const existing = await this.findUserByEmail(normEmail);
     if (existing) throw new ConflictException('User with this email already exists');
 
-    // 1. Create User
+    // 1. Store in pending_users
     await new Promise<void>((resolve, reject) => {
-        db.run('INSERT INTO users (email, password_hash, is_verified, created_at) VALUES (?, ?, 0, ?)',
+        db.run('INSERT OR REPLACE INTO pending_users (email, password_hash, created_at) VALUES (?, ?, ?)',
             [normEmail, passwordHash, createdAt],
             (err) => err ? reject(err) : resolve()
         );
@@ -48,13 +75,15 @@ export class AuthService {
         [normEmail, code, expiresAt], (err) => err ? reject(err) : resolve());
     });
 
-    console.log(`[VERIFICATION CODE] ${normEmail}: ${code}`);
+    await this.sendVerificationEmail(normEmail, code);
     return { message: 'Verification code sent to your email' };
   }
 
   async verify(email: string, code: string) {
     const db = this.dbService.getDatabase();
     const normEmail = email.trim().toLowerCase();
+    
+    // Check code
     const row = await new Promise((resolve, reject) => {
       db.get('SELECT * FROM user_verifications WHERE email = ?', [normEmail], (err, row) => err ? reject(err) : resolve(row));
     });
@@ -62,8 +91,22 @@ export class AuthService {
     if (!row || (row as any).code !== code) throw new UnauthorizedException('Invalid verification code');
     if (new Date((row as any).expires_at) < new Date()) throw new UnauthorizedException('Code expired');
 
-    db.run('UPDATE users SET is_verified = 1 WHERE email = ?', [normEmail]);
+    // Move from pending_users to users
+    const pending = await new Promise((resolve, reject) => {
+        db.get('SELECT * FROM pending_users WHERE email = ?', [normEmail], (err, row) => err ? reject(err) : resolve(row));
+    });
+    
+    if (!pending) throw new UnauthorizedException('Registration data not found');
+
+    await new Promise<void>((resolve, reject) => {
+        db.run('INSERT INTO users (email, password_hash, is_verified, created_at) VALUES (?, ?, 1, ?)',
+            [(pending as any).email, (pending as any).password_hash, (pending as any).created_at],
+            (err) => err ? reject(err) : resolve()
+        );
+    });
+
     db.run('DELETE FROM user_verifications WHERE email = ?', [normEmail]);
+    db.run('DELETE FROM pending_users WHERE email = ?', [normEmail]);
     
     return { message: 'Verified' };
   }
@@ -82,7 +125,7 @@ export class AuthService {
         [normEmail, code, expiresAt], (err) => err ? reject(err) : resolve());
     });
 
-    console.log(`[PASSWORD RESET CODE] ${normEmail}: ${code}`);
+    await this.sendVerificationEmail(normEmail, code);
     return { message: 'Reset code sent' };
   }
 
@@ -136,6 +179,63 @@ export class AuthService {
         }
         resolve(this.changes > 0);
       });
+    });
+  }
+
+  async resendCode(email: string) {
+    const db = this.dbService.getDatabase();
+    const normEmail = email.trim().toLowerCase();
+    
+    // Check if user exists
+    const user = await this.findUserByEmail(normEmail);
+    if (!user) throw new UnauthorizedException('User not found');
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60000).toISOString();
+    
+    await new Promise<void>((resolve, reject) => {
+      db.run('INSERT OR REPLACE INTO user_verifications (email, code, expires_at) VALUES (?, ?, ?)', 
+        [normEmail, code, expiresAt], (err) => err ? reject(err) : resolve());
+    });
+
+    await this.sendVerificationEmail(normEmail, code);
+    return { message: 'Verification code resent' };
+  }
+
+  async saveProgress(user_id: number, story_id: number, progress: any) {
+    const db = this.dbService.getDatabase();
+    const { chat_history, story_state, choices_count, last_scene_summary, last_user_choice } = progress;
+    const updatedAt = new Date().toISOString();
+
+    return new Promise<void>((resolve, reject) => {
+      db.run(`INSERT OR REPLACE INTO user_story_progress 
+        (user_id, story_id, chat_history, story_state, choices_count, last_scene_summary, last_user_choice, updated_at) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [user_id, story_id, JSON.stringify(chat_history), JSON.stringify(story_state), choices_count, last_scene_summary, last_user_choice, updatedAt],
+        (err) => err ? reject(err) : resolve()
+      );
+    });
+  }
+
+  async getStories() {
+    const db = this.dbService.getDatabase();
+    return new Promise((resolve, reject) => {
+      db.all('SELECT * FROM stories', [], (err, rows) => err ? reject(err) : resolve(rows));
+    });
+  }
+
+  async getAllProgress(user_id: number) {
+    const db = this.dbService.getDatabase();
+    return new Promise((resolve, reject) => {
+      db.all('SELECT * FROM user_story_progress WHERE user_id = ?', [user_id], (err, rows) => err ? reject(err) : resolve(rows));
+    });
+  }
+
+  async getProgress(user_id: number, story_id: number) {
+    const db = this.dbService.getDatabase();
+    return new Promise((resolve, reject) => {
+      db.get('SELECT * FROM user_story_progress WHERE user_id = ? AND story_id = ?', 
+        [user_id, story_id], (err, row) => err ? reject(err) : resolve(row));
     });
   }
 
