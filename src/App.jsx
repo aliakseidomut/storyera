@@ -38,41 +38,8 @@ export default function App() {
 
   const [choicesCount, setChoicesCount] = useState(0);
   const [isPremium, setIsPremium] = useState(false);
-  
-  const handlePayment = async () => {
-    try {
-      const res = await fetch('/api/create-checkout-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: currentUser.email }),
-      });
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        alert('Could not initiate payment.');
-      }
-    } catch (err) {
-      console.error('Payment error:', err);
-    }
-  };
-
-  useEffect(() => {
-    const query = new URLSearchParams(window.location.search);
-    const session_id = query.get('session_id');
-    const email = query.get('email');
-
-    if (session_id && email) {
-      fetch('/api/verify-payment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id, email })
-      }).then(() => {
-        setIsPremium(true);
-        window.history.replaceState({}, document.title, "/");
-      });
-    }
-  }, []);
+  // Payment flow is temporarily disabled.
+  const handlePayment = async () => {};
 
   const handleChoiceSelect = (choice) => {
     handleSendMessage(choice);
@@ -109,26 +76,7 @@ export default function App() {
   // Load data on mount
   useEffect(() => {
     loadStories();
-    if (currentUser) {
-      checkPremiumStatus();
-    }
   }, [currentUser]);
-
-  const checkPremiumStatus = async () => {
-    console.log('Checking premium for:', currentUser?.email);
-    try {
-      const res = await fetch('/api/me', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: currentUser?.email })
-      });
-      const data = await res.json();
-      console.log('Premium status check response:', data);
-      setIsPremium(!!data.isPremium);
-    } catch (err) {
-      console.error('Failed to check premium:', err);
-    }
-  };
 
   // Load stories from database
   const loadStories = async () => {
@@ -228,6 +176,7 @@ export default function App() {
     setLastUserChoice(message);
     setCurrentChoices([]); // Clear previous choices
     setIsTyping(true);
+    // Keep this counter for future features (currently no paywall).
     setChoicesCount(prev => prev + 1);
 
     // Build conversation history for context
@@ -318,8 +267,6 @@ export default function App() {
               selectedCategory={selectedCategory}
               setSelectedCategory={setSelectedCategory}
               onStoryClick={goToStoryDetail}
-              isPremium={isPremium}
-              onPayment={handlePayment}
             />
           )}
           {currentUser && currentView === 'story-detail' && (
@@ -335,9 +282,6 @@ export default function App() {
               chatMessages={chatMessages}
               isTyping={isTyping}
               choices={currentChoices}
-              choicesCount={choicesCount}
-              isPremium={isPremium}
-              onPayment={handlePayment}
               onBack={() => goToStoryDetail(currentStory)}
               onSendMessage={handleSendMessage}
               onChoiceSelect={handleChoiceSelect}

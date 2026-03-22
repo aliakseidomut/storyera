@@ -5,9 +5,6 @@ export default function Chat({
   chatMessages, 
   isTyping, 
   choices = [],
-  choicesCount,
-  isPremium,
-  onPayment,
   onBack, 
   onSendMessage,
   onChoiceSelect
@@ -88,14 +85,7 @@ export default function Chat({
         </div>
       </div>
 
-      {choicesCount >= 3 && !isPremium && (
-          <div className="px-4 py-3 bg-brand text-white flex items-center justify-between">
-            <span className="text-sm font-semibold">Unlock Premium for $9.90</span>
-            <button onClick={onPayment} className="px-4 py-1.5 bg-black text-white border border-white/20 rounded-full text-xs font-bold hover:bg-black/80 transition-colors">
-              Buy Premium
-            </button>
-          </div>
-      )}
+      {/* Payment gate temporarily disabled */}
 
       {/* Choice buttons */}
       {choices.length > 0 && !isTyping && (

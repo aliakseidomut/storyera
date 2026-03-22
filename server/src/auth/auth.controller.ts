@@ -1,10 +1,5 @@
 import { Body, Controller, Post, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import Stripe from 'stripe';
-
-const stripe = new Stripe('STRIPE_KEY_REDACTED', {
-  apiVersion: '2024-06-20' as any,
-});
 
 class AuthDto {
   email!: string;
@@ -60,35 +55,14 @@ export class AuthController {
     return { isPremium: user?.is_premium || false };
   }
 
-  @Post('create-checkout-session')
-  async createCheckoutSession(@Body() body: { email: string }) {
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [{
-        price_data: {
-          currency: 'usd',
-          product_data: { 
-            name: 'Premium Storyera',
-            description: 'Premium subscription for Storyera store'
-          },
-          unit_amount: 990,
-        },
-        quantity: 1,
-      }],
-      mode: 'payment',
-      success_url: 'https://storiera.run.place/success?session_id={CHECKOUT_SESSION_ID}&email=' + encodeURIComponent(body.email),
-      cancel_url: 'https://storiera.run.place/cancel',
-    });
-    return { url: session.url };
-  }
+  // Payments are temporarily disabled.
+  // @Post('create-checkout-session')
+  // async createCheckoutSession(@Body() body: { email: string }) {
+  //   return { message: 'Payments are temporarily disabled' };
+  // }
 
-  @Post('verify-payment')
-  async verifyPayment(@Body() body: { session_id: string; email: string }) {
-    const session = await stripe.checkout.sessions.retrieve(body.session_id);
-    if (session.payment_status === 'paid') {
-      await this.authService.updatePremium(body.email);
-      return { success: true };
-    }
-    throw new Error('Payment not completed');
-  }
+  // @Post('verify-payment')
+  // async verifyPayment(@Body() body: { session_id: string; email: string }) {
+  //   return { message: 'Payments are temporarily disabled' };
+  // }
 }

@@ -7,26 +7,11 @@ export default function Library({
   setSearchQuery, 
   selectedCategory, 
   setSelectedCategory, 
-  onStoryClick,
-  isPremium,
-  onPayment
+  onStoryClick
 }) {
   return (
     <div className="h-full flex flex-col animate-fade-in bg-black">
-      {!isPremium && (
-        <div className="px-6 pt-6">
-          <div className="bg-brand rounded-2xl p-5 text-white shadow-lg shadow-brand/20">
-            <h3 className="font-bold text-lg">Go Premium</h3>
-            <p className="text-xs text-stone-200 mb-4 opacity-90">Unlock unlimited stories and advanced features</p>
-            <button 
-              onClick={onPayment}
-              className="w-full py-2 bg-black text-white rounded-xl text-sm font-bold shadow-md hover:bg-stone-900 transition-colors"
-            >
-              Buy Premium
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Premium banner temporarily disabled */}
       <div className="px-6 py-4 bg-black border-b border-stone-800 sticky top-0 z-10">
         <div className="relative">
           <input
