@@ -53,7 +53,7 @@ export default function App() {
 
   useEffect(() => {
     if (currentUser) {
-        DatabaseService.getAllProgress(currentUser.id).then(allProgress => {
+        DatabaseService.getAllProgress(currentUser.id, currentUser.email).then(allProgress => {
             if (Array.isArray(allProgress)) {
                 const progMap = {};
                 allProgress.forEach(p => {
@@ -214,6 +214,27 @@ export default function App() {
     setCurrentView('story-detail');
   };
 
+  const restartStory = async (story) => {
+    const selectedStory = story || currentStory;
+    if (!selectedStory || (!currentUser?.id && !currentUser?.email)) {
+      startChat(selectedStory, { forceRestart: true });
+      return;
+    }
+
+    try {
+      await DatabaseService.clearProgress(currentUser.id, selectedStory.id, currentUser.email);
+      setProgress(prev => {
+        const next = { ...prev };
+        delete next[selectedStory.id];
+        return next;
+      });
+    } catch (e) {
+      console.error('Failed to clear progress', e);
+    }
+
+    startChat(selectedStory, { forceRestart: true });
+  };
+
   const handleAuthSuccess = (user) => {
     setCurrentUser(user);
     setCurrentView('library');
@@ -243,25 +264,65 @@ export default function App() {
     setShowSettingsModal(false);
   };
 
-  const startChat = async (story) => {
+  const persistProgress = async ({
+    storyId,
+    messages,
+    state,
+    choices,
+    sceneSummary,
+    userChoice,
+  }) => {
+    if ((!currentUser?.id && !currentUser?.email) || !storyId) return;
+    try {
+      await DatabaseService.saveProgress(currentUser.id, storyId, {
+        chat_history: messages,
+        story_state: state,
+        choices_count: choices,
+        last_scene_summary: sceneSummary,
+        last_user_choice: userChoice,
+      }, currentUser.email);
+      setProgress(prev => ({
+        ...prev,
+        [storyId]: {
+          story_id: storyId,
+          user_id: currentUser.id || null,
+          last_scene_summary: sceneSummary,
+          choices_count: choices,
+          updated_at: new Date().toISOString(),
+        },
+      }));
+    } catch (e) {
+      console.error('Failed to persist progress', e);
+    }
+  };
+
+  const startChat = async (story, options = {}) => {
+    const { forceRestart = false } = options;
     const selectedStory = story || currentStory;
     if (!selectedStory) return;
     setCurrentStory(selectedStory);
     
     // Check for saved progress
-    try {
-        const savedProgress = await DatabaseService.getProgress(currentUser.id, selectedStory.id);
+    if (!forceRestart && (currentUser?.id || currentUser?.email)) {
+      try {
+        const savedProgress = await DatabaseService.getProgress(currentUser.id, selectedStory.id, currentUser.email);
         if (savedProgress) {
-            setChatMessages(JSON.parse(savedProgress.chat_history));
-            setStoryState(JSON.parse(savedProgress.story_state));
+            const parsedHistory = savedProgress.chat_history ? JSON.parse(savedProgress.chat_history) : [];
+            const parsedState = savedProgress.story_state ? JSON.parse(savedProgress.story_state) : {};
+            setChatMessages(Array.isArray(parsedHistory) ? parsedHistory : []);
+            setStoryState(parsedState || {});
             setChoicesCount(savedProgress.choices_count);
             setLastSceneSummary(savedProgress.last_scene_summary);
             setLastUserChoice(savedProgress.last_user_choice);
+            setCurrentChoices(language === 'ru'
+              ? ['Продолжить уверенно', 'Спросить прямо', 'Сменить тактику']
+              : ['Continue boldly', 'Ask directly', 'Change strategy']);
             setCurrentView('chat');
             return;
         }
-    } catch (e) {
+      } catch (e) {
         console.error('Failed to load progress', e);
+      }
     }
     
     // Reset if no progress found
@@ -269,6 +330,8 @@ export default function App() {
     setCurrentChoices([]);
     setLastSceneSummary('');
     setLastUserChoice('');
+    setChoicesCount(0);
+    setMessageCounter(0);
     
     // Reset story state to initial values
     setStoryState({
@@ -321,6 +384,25 @@ export default function App() {
         addAIMessage(message);
         if (index === openingMessages.length - 1) {
           setCurrentChoices(starterChoices);
+          const seededMessages = openingMessages.map((line) => ({ role: 'ai', content: line }));
+          persistProgress({
+            storyId: selectedStory.id,
+            messages: seededMessages,
+            state: {
+              trust: 50,
+              attraction: 50,
+              tension: 30,
+              mystery: 70,
+              control: 50,
+              risk: 30,
+              boundaries: 50,
+              pressure: 30,
+              emotional_stability: 50,
+            },
+            choices: 0,
+            sceneSummary: openingMessages[openingMessages.length - 1] || '',
+            userChoice: '',
+          });
         }
       }, 500 + (index * 1000));
     });
@@ -338,7 +420,8 @@ export default function App() {
     setLastUserChoice(message);
     setCurrentChoices([]); // Clear previous choices
     setIsTyping(true);
-    setChoicesCount(prev => prev + 1);
+    const newChoicesCount = choicesCount + 1;
+    setChoicesCount(newChoicesCount);
     const newMessageCount = messageCounter + 1;
     setMessageCounter(newMessageCount);
 
@@ -385,20 +468,31 @@ export default function App() {
     );
 
     // Save progress
-    if (currentUser) {
-        await DatabaseService.saveProgress(currentUser.id, currentStory.id, {
-            chat_history: finalMessages,
-            story_state: storyState,
-            choices_count: choicesCount,
-            last_scene_summary: lastSceneSummary,
-            last_user_choice: message
-        });
-    }
+    await persistProgress({
+      storyId: currentStory?.id,
+      messages: finalMessages,
+      state: storyState,
+      choices: newChoicesCount,
+      sceneSummary: sceneText.substring(0, 200),
+      userChoice: message,
+    });
     
     setTimeout(() => {
       addAIMessage(sceneText);
       setCurrentChoices(choices);
     }, 300);
+  };
+
+  const handleExitChat = async () => {
+    await persistProgress({
+      storyId: currentStory?.id,
+      messages: chatMessages,
+      state: storyState,
+      choices: choicesCount,
+      sceneSummary: lastSceneSummary || chatMessages?.[chatMessages.length - 1]?.content || '',
+      userChoice: lastUserChoice || '',
+    });
+    setCurrentView('library');
   };
 
   // Story Generation
@@ -451,6 +545,7 @@ export default function App() {
               isPremium={isPremium}
               onPayment={handlePayment}
               language={language}
+              progress={progress}
             />
           )}
           {currentUser && currentView === 'continue' && (
@@ -465,6 +560,8 @@ export default function App() {
               story={currentStory}
               onBack={goToLibrary}
               onStartStory={startChat}
+              onRestartStory={() => restartStory(currentStory)}
+              hasProgress={!!progress[currentStory?.id]}
               language={language}
             />
           )}
@@ -477,7 +574,7 @@ export default function App() {
               choicesCount={choicesCount}
               isPremium={isPremium}
               onPayment={handlePayment}
-              onBack={() => setCurrentView('library')}
+              onBack={handleExitChat}
               onSendMessage={handleSendMessage}
               onChoiceSelect={handleChoiceSelect}
               language={language}

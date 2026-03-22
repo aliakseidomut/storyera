@@ -10,7 +10,8 @@ export default function Library({
   onStoryClick,
   isPremium,
   onPayment,
-  language
+   language,
+   progress = {}
 }) {
   const isRu = language === 'ru';
   
@@ -23,7 +24,9 @@ export default function Library({
     custom: isRu ? 'Свое' : 'Custom',
     buyPremium: isRu ? 'Купить Premium' : 'Buy Premium',
     goPremium: isRu ? 'Premium' : 'Go Premium',
-    unlock: isRu ? 'Открой безлимит' : 'Unlock unlimited stories'
+     unlock: isRu ? 'Открой безлимит' : 'Unlock unlimited stories',
+     start: isRu ? 'Начать' : 'Start',
+     continue: isRu ? 'Продолжить' : 'Continue'
   };
 
   const getCategoryName = (cat) => {
@@ -99,6 +102,15 @@ export default function Library({
                 <div className="p-4">
                   <h4 className="font-bold text-sm text-foreground">{story.title}</h4>
                   <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{story.description}</p>
+                   <button
+                     className="mt-3 w-full py-2 bg-primary text-primary-foreground rounded-xl text-sm font-semibold"
+                     onClick={(e) => {
+                       e.stopPropagation();
+                       onStoryClick(story);
+                     }}
+                   >
+                     {progress[story.id] ? t.continue : t.start}
+                   </button>
                 </div>
               </div>
             ))}

@@ -1,8 +1,10 @@
-export default function StoryDetail({ story, onBack, onStartStory, language = 'en' }) {
+export default function StoryDetail({ story, onBack, onStartStory, onRestartStory, hasProgress = false, language = 'en' }) {
   const isRu = language === 'ru';
   const t = {
     characters: isRu ? 'Персонажи' : 'Characters',
     startStory: isRu ? 'Начать историю' : 'Start Story',
+    continueStory: isRu ? 'Продолжить' : 'Continue',
+    restartStory: isRu ? 'Перечитать заново' : 'Read Again',
   };
 
   return (
@@ -50,12 +52,22 @@ export default function StoryDetail({ story, onBack, onStartStory, language = 'e
           </div>
         </div>
 
-        <button
-          onClick={onStartStory}
-          className="w-full py-4 bg-primary text-primary-foreground rounded-xl font-semibold mt-4 hover:opacity-90 transition shadow-lg shadow-[hsl(var(--primary)/0.38)] hover:shadow-xl hover:shadow-[hsl(var(--primary)/0.5)]"
-        >
-          {t.startStory}
-        </button>
+        <div className="grid grid-cols-1 gap-2 mt-4">
+          <button
+            onClick={onStartStory}
+            className="w-full py-4 bg-primary text-primary-foreground rounded-xl font-semibold hover:opacity-90 transition shadow-lg shadow-[hsl(var(--primary)/0.38)] hover:shadow-xl hover:shadow-[hsl(var(--primary)/0.5)]"
+          >
+            {hasProgress ? t.continueStory : t.startStory}
+          </button>
+          {hasProgress && (
+            <button
+              onClick={onRestartStory}
+              className="w-full py-3.5 border border-border rounded-xl font-medium text-foreground hover:bg-muted transition"
+            >
+              {t.restartStory}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

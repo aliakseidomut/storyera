@@ -2,6 +2,16 @@
 // DATABASE SERVICE (Fetch from Real API)
 // ============================================
 export const DatabaseService = {
+  async parseJsonResponse(response, fallback = null) {
+    const text = await response.text();
+    if (!text) return fallback;
+    try {
+      return JSON.parse(text);
+    } catch {
+      return fallback;
+    }
+  },
+
   // Get all stories
   async getStories(filters = {}) {
     const response = await fetch('/api/stories', {
@@ -9,7 +19,7 @@ export const DatabaseService = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(filters)
     });
-    return await response.json();
+    return await this.parseJsonResponse(response, []);
   },
 
   // Save chat history
@@ -19,31 +29,40 @@ export const DatabaseService = {
     return { success: true };
   },
 
-  async saveProgress(userId, storyId, progress) {
+  async saveProgress(userId, storyId, progress, email) {
     const response = await fetch('/api/save-progress', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: userId, story_id: storyId, progress })
+      body: JSON.stringify({ user_id: userId, email, story_id: storyId, progress })
     });
-    return response.json();
+    return this.parseJsonResponse(response, { success: response.ok });
   },
 
-  async getProgress(userId, storyId) {
+  async getProgress(userId, storyId, email) {
     const response = await fetch('/api/get-progress', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: userId, story_id: storyId })
+      body: JSON.stringify({ user_id: userId, email, story_id: storyId })
     });
-    return response.json();
+    return this.parseJsonResponse(response, null);
   },
 
-  async getAllProgress(userId) {
+  async clearProgress(userId, storyId, email) {
+    const response = await fetch('/api/clear-progress', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, email, story_id: storyId })
+    });
+    return this.parseJsonResponse(response, { success: response.ok });
+  },
+
+  async getAllProgress(userId, email) {
     const response = await fetch('/api/all-progress', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId })
+        body: JSON.stringify({ user_id: userId, email })
     });
-    return response.json();
+    return this.parseJsonResponse(response, []);
   },
 
   async createStory(storyData) {
