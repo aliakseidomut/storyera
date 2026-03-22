@@ -17,7 +17,7 @@
     "nodemailer": "^8.0.2",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.1",
-    "sqlite3": "^6.0.1",
+    "sqlite3": "^5.1.6",
     "stripe": "^20.4.1"
   },
   "devDependencies": {

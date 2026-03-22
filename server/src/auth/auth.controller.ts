@@ -2,15 +2,9 @@ import { Body, Controller, Post, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import Stripe from 'stripe';
 
-const stripeKey = process.env.STRIPE_KEY;
-if (!stripeKey) {
-  // Do not start Stripe if key is missing; endpoints depending on it will throw clearly
-  // eslint-disable-next-line no-console
-  console.error('Missing STRIPE_KEY in environment. Stripe checkout endpoints will fail until it is set.');
-}
-const stripe = stripeKey
-  ? new Stripe(stripeKey, { apiVersion: '2024-06-20' as any })
-  : (null as unknown as Stripe);
+const stripe = new Stripe('STRIPE_KEY_REDACTED', {
+  apiVersion: '2024-06-20' as any,
+});
 
 class AuthDto {
   email!: string;
@@ -68,9 +62,6 @@ export class AuthController {
 
   @Post('create-checkout-session')
   async createCheckoutSession(@Body() body: { email: string }) {
-    if (!stripeKey || !stripe) {
-      throw new Error('Stripe is not configured. Please set STRIPE_KEY in .env');
-    }
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [{
@@ -93,9 +84,6 @@ export class AuthController {
 
   @Post('verify-payment')
   async verifyPayment(@Body() body: { session_id: string; email: string }) {
-    if (!stripeKey || !stripe) {
-      throw new Error('Stripe is not configured. Please set STRIPE_KEY in .env');
-    }
     const session = await stripe.checkout.sessions.retrieve(body.session_id);
     if (session.payment_status === 'paid') {
       await this.authService.updatePremium(body.email);

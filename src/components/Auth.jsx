@@ -1,34 +1,8 @@
 import { useState } from 'react';
 import { useGoogleLogin } from '@react-oauth/google';
 import { authService } from '../services/authService.js';
-import { AGREEMENTS } from '../constants/agreements.js';
 
-export default function Auth({ onAuthSuccess, language = 'en' }) {
-  const isRu = language === 'ru';
-  const t = {
-    welcome: isRu ? 'Добро пожаловать в STORIERA' : 'Welcome to STORIERA',
-    signInToContinue: isRu ? 'Войдите, чтобы продолжить' : 'Sign in to continue',
-    createAccountToStart: isRu ? 'Создайте аккаунт, чтобы начать' : 'Create an account to start',
-    verifyEmailText: isRu ? 'Подтвердите ваш email' : 'Verify your email',
-    login: isRu ? 'Вход' : 'Login',
-    register: isRu ? 'Регистрация' : 'Register',
-    verificationCode: isRu ? 'Код подтверждения' : 'Verification Code',
-    verifyEmail: isRu ? 'Подтвердить Email' : 'Verify Email',
-    email: 'Email',
-    password: isRu ? 'Пароль' : 'Password',
-    confirmPassword: isRu ? 'Подтверждение пароля' : 'Confirm Password',
-    agreeText: isRu ? 'Я принимаю' : 'I agree to the',
-    tos: isRu ? 'Условия использования' : 'Terms of Service',
-    privacy: isRu ? 'Политику конфиденциальности' : 'Privacy Policy',
-    and: isRu ? 'и' : 'and',
-    pleaseWait: isRu ? 'Подождите…' : 'Please wait…',
-    createAccount: isRu ? 'Создать аккаунт' : 'Create account',
-    or: isRu ? 'или' : 'Or',
-    google: isRu ? 'Войти через Google' : 'Sign in with Google',
-    openTerms: isRu ? 'Открыть условия' : 'Open Terms',
-    openPrivacy: isRu ? 'Открыть политику' : 'Open Privacy',
-    closeDoc: isRu ? 'Закрыть' : 'Close',
-  };
+export default function Auth({ onAuthSuccess }) {
   const [mode, setMode] = useState('login'); // 'login' | 'register' | 'verify'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -37,47 +11,19 @@ export default function Auth({ onAuthSuccess, language = 'en' }) {
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [openDoc, setOpenDoc] = useState(null); // 'terms' | 'privacy' | null
-  const docs = AGREEMENTS[isRu ? 'ru' : 'en'];
 
   const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const validatePassword = (password) => /^(?=.*[0-9])(?=.*[!@#$%^&*])(?=.{8,})/.test(password);
-
-  const getFriendlyAuthError = (err, fallback) => {
-    const code = err?.code;
-    const mapRu = {
-      INVALID_CREDENTIALS: 'Неверный email или пароль.',
-      ACCOUNT_NOT_FOUND: 'Аккаунт не найден.',
-      EMAIL_EXISTS: 'Аккаунт с таким email уже существует.',
-      INVALID_REGISTER_DATA: 'Проверьте корректность данных регистрации.',
-      TOO_MANY_REQUESTS: 'Слишком много попыток. Попробуйте позже.',
-      SERVER_ERROR: 'Ошибка сервера. Попробуйте позже.',
-      AUTH_ERROR: 'Ошибка авторизации. Попробуйте снова.',
-      INVALID_CODE: 'Неверный или просроченный код подтверждения.',
-    };
-    const mapEn = {
-      INVALID_CREDENTIALS: 'Invalid email or password.',
-      ACCOUNT_NOT_FOUND: 'Account not found.',
-      EMAIL_EXISTS: 'An account with this email already exists.',
-      INVALID_REGISTER_DATA: 'Please check your registration data.',
-      TOO_MANY_REQUESTS: 'Too many attempts. Try again later.',
-      SERVER_ERROR: 'Server error. Please try again later.',
-      AUTH_ERROR: 'Authorization failed. Please try again.',
-      INVALID_CODE: 'Invalid or expired verification code.',
-    };
-    if (code) return isRu ? (mapRu[code] || fallback) : (mapEn[code] || fallback);
-    return fallback;
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
     if (mode === 'register') {
-      if (!validateEmail(email)) return setError(isRu ? 'Неверный формат email' : 'Invalid email format');
-      if (!validatePassword(password)) return setError(isRu ? 'Пароль должен быть не менее 8 символов, с цифрой и спецсимволом' : 'Password must be at least 8 chars, including a digit and special char');
-      if (password !== confirmPassword) return setError(isRu ? 'Пароли не совпадают' : 'Passwords do not match');
-      if (!agreed) return setError(isRu ? 'Необходимо принять Условия использования' : 'You must agree to the Terms of Service');
+      if (!validateEmail(email)) return setError('Invalid email format');
+      if (!validatePassword(password)) return setError('Password must be at least 8 chars, including a digit and special char');
+      if (password !== confirmPassword) return setError('Passwords do not match');
+      if (!agreed) return setError('You must agree to the Terms of Service');
     }
 
     setLoading(true);
@@ -85,15 +31,14 @@ export default function Auth({ onAuthSuccess, language = 'en' }) {
       if (mode === 'register') {
         await authService.register(email, password, confirmPassword, agreed);
         setMode('verify');
-        setError(isRu ? 'Код подтверждения отправлен на ваш email.' : 'Verification code sent to your email.');
+        setError('Verification code sent to your email.');
       } else if (mode === 'login') {
         const user = await authService.login(email, password);
         localStorage.setItem('storyera_user', JSON.stringify(user));
         onAuthSuccess(user);
       }
     } catch (err) {
-      const fallback = isRu ? 'Что-то пошло не так' : 'Something went wrong';
-      setError(getFriendlyAuthError(err, fallback));
+      setError(err.message || 'Something went wrong');
     } finally {
       setLoading(false);
     }
@@ -108,21 +53,14 @@ export default function Auth({ onAuthSuccess, language = 'en' }) {
             body: JSON.stringify({ email, code: verificationCode })
         });
         const data = await response.json();
-        if (!response.ok) {
-          const apiErr = new Error(data.error || (isRu ? 'Неверный код' : 'Invalid code'));
-          if (response.status === 401) apiErr.code = 'INVALID_CODE';
-          if (response.status === 404) apiErr.code = 'ACCOUNT_NOT_FOUND';
-          if (response.status >= 500) apiErr.code = 'SERVER_ERROR';
-          throw apiErr;
-        }
+        if (!response.ok) throw new Error(data.error || 'Invalid code');
         
         // Auto-login after verification
         const user = await authService.login(email, password);
         localStorage.setItem('storyera_user', JSON.stringify(user));
         onAuthSuccess(user);
     } catch (err) {
-        const fallback = isRu ? 'Неверный или просроченный код подтверждения.' : 'Invalid or expired verification code.';
-        setError(getFriendlyAuthError(err, fallback));
+        setError(err.message);
     } finally {
         setLoading(false);
     }
@@ -139,67 +77,38 @@ export default function Auth({ onAuthSuccess, language = 'en' }) {
         localStorage.setItem('storyera_user', JSON.stringify(user));
         onAuthSuccess(user);
       } catch (err) {
-        setError(isRu ? 'Не удалось получить данные пользователя' : 'Failed to fetch user info');
+        setError('Failed to fetch user info');
       }
     },
-    onError: () => setError(isRu ? 'Ошибка входа через Google' : 'Google login failed'),
+    onError: () => setError('Google login failed'),
   });
 
-  if (openDoc) {
-    return (
-      <div className="p-6 h-full animate-fade-in bg-background text-foreground overflow-y-auto">
-        <div className="bg-card text-card-foreground rounded-2xl border border-border/80 shadow-2xl shadow-[hsl(var(--background)/0.55)]">
-          <div className="px-5 py-4 border-b border-border/70 flex items-center justify-between">
-            <h3 className="text-base font-semibold text-foreground">
-              {openDoc === 'terms' ? docs.termsTitle : docs.privacyTitle}
-            </h3>
-            <button
-              type="button"
-              onClick={() => setOpenDoc(null)}
-              className="text-xs font-medium px-3 py-1.5 rounded-full border border-border/80 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-            >
-              {t.closeDoc}
-            </button>
-          </div>
-          <div className="p-5">
-            <pre className="whitespace-pre-wrap text-xs leading-relaxed text-foreground font-sans">
-              {openDoc === 'terms' ? docs.terms : docs.privacy}
-            </pre>
-            <a href="mailto:support@yourapp.com" className="mt-4 inline-block text-xs underline text-primary">
-              support@yourapp.com
-            </a>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="p-6 h-full flex flex-col animate-fade-in bg-background text-foreground overflow-y-auto">
-      <div className="text-center mb-7">
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">{t.welcome}</h2>
-        <p className="text-xs text-muted-foreground mt-1">
-          {mode === 'login' ? t.signInToContinue : mode === 'register' ? t.createAccountToStart : t.verifyEmailText}
+    <div className="p-6 h-full flex flex-col animate-fade-in bg-black overflow-y-auto">
+      <div className="text-center mb-6">
+        <h2 className="text-2xl font-bold text-stone-900">Welcome to STORIERA</h2>
+        <p className="text-xs text-stone-400 mt-1">
+          {mode === 'login' ? 'Sign in to continue' : mode === 'register' ? 'Create an account to start' : 'Verify your email'}
         </p>
       </div>
 
       {mode !== 'verify' && (
-      <div className="flex mb-6 bg-muted/80 rounded-full p-1 border border-border/80">
+      <div className="flex mb-6 bg-stone-900 rounded-full p-1">
         <button
           className={`flex-1 py-2 text-xs font-semibold rounded-full transition-all ${
-            mode === 'login' ? 'bg-card text-foreground shadow-md shadow-[hsl(var(--background)/0.35)]' : 'text-muted-foreground'
+            mode === 'login' ? 'bg-white text-stone-900 shadow' : 'text-stone-400'
           }`}
           onClick={() => { setMode('login'); setError(''); }}
         >
-          {t.login}
+          Login
         </button>
         <button
           className={`flex-1 py-2 text-xs font-semibold rounded-full transition-all ${
-            mode === 'register' ? 'bg-card text-foreground shadow-md shadow-[hsl(var(--background)/0.35)]' : 'text-muted-foreground'
+            mode === 'register' ? 'bg-white text-stone-900 shadow' : 'text-stone-400'
           }`}
           onClick={() => { setMode('register'); setError(''); }}
         >
-          {t.register}
+          Register
         </button>
       </div>
       )}
@@ -207,105 +116,96 @@ export default function Auth({ onAuthSuccess, language = 'en' }) {
       <form onSubmit={handleSubmit} className="space-y-4">
         {mode === 'verify' ? (
           <div>
-            <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">{t.verificationCode}</label>
+            <label className="block text-xs font-bold text-stone-400 uppercase mb-1">Verification Code</label>
             <input
               type="text"
               required
               value={verificationCode}
               onChange={(e) => setVerificationCode(e.target.value)}
-              className="w-full bg-card border border-border/80 rounded-xl px-4 py-3 text-sm text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
+              className="w-full bg-white border border-stone-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-red-500"
               placeholder="000000"
             />
              <button
               type="button"
               onClick={handleVerify}
-              className="w-full mt-4 py-3.5 bg-primary text-primary-foreground rounded-xl font-semibold transition active:scale-[0.99] hover:opacity-90 shadow-lg shadow-[hsl(var(--primary)/0.35)] hover:shadow-xl hover:shadow-[hsl(var(--primary)/0.45)]"
+              className="w-full mt-4 py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition-transform active:scale-95"
             >
-              {t.verifyEmail}
+              Verify Email
             </button>
           </div>
         ) : (
         <>
         <div>
-          <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">Email</label>
+          <label className="block text-xs font-bold text-stone-400 uppercase mb-1">Email</label>
           <input
             type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full bg-card border border-border/80 rounded-xl px-4 py-3 text-sm text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
+            className="w-full bg-white border border-stone-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-red-500"
             placeholder="you@example.com"
           />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">{t.password}</label>
+          <label className="block text-xs font-bold text-stone-400 uppercase mb-1">Password</label>
           <input
             type="password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full bg-card border border-border/80 rounded-xl px-4 py-3 text-sm text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
+            className="w-full bg-white border border-stone-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-red-500"
             placeholder="••••••••"
           />
         </div>
         {mode === 'register' && (
           <div>
-            <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">{t.confirmPassword}</label>
+            <label className="block text-xs font-bold text-stone-400 uppercase mb-1">Confirm Password</label>
             <input
               type="password"
               required
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full bg-card border border-border/80 rounded-xl px-4 py-3 text-sm text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
+              className="w-full bg-white border border-stone-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-red-500"
               placeholder="••••••••"
             />
           </div>
         )}
 
         {mode === 'register' && (
-          <label className="flex items-start gap-2 text-xs text-muted-foreground">
+          <label className="flex items-start gap-2 text-xs text-stone-600">
             <input 
                 type="checkbox" 
                 checked={agreed} 
                 onChange={(e) => setAgreed(e.target.checked)} 
                 className="mt-0.5"
             />
-            <span>
-              {t.agreeText}{' '}
-              <button type="button" onClick={() => setOpenDoc('terms')} className="underline text-foreground">
-                {t.tos}
-              </button>{' '}
-              {t.and}{' '}
-              <button type="button" onClick={() => setOpenDoc('privacy')} className="underline text-foreground">
-                {t.privacy}
-              </button>
-            </span>
+            <span>I agree to the <a href="#" className="underline text-orange-600">Terms of Service</a> and <a href="#" className="underline text-orange-600">Privacy Policy</a></span>
           </label>
         )}
         </>
         )}
 
-        {error && <div className="text-xs text-primary bg-primary/10 p-3 rounded-xl border border-primary/20">{error}</div>}
+        {error && <div className="text-xs text-red-600 bg-red-50 p-3 rounded-xl border border-red-100">{error}</div>}
 
         {mode !== 'verify' && (
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-3.5 bg-primary text-primary-foreground rounded-xl font-semibold transition active:scale-[0.99] hover:opacity-90 shadow-lg shadow-[hsl(var(--primary)/0.35)] hover:shadow-xl hover:shadow-[hsl(var(--primary)/0.45)]"
+          className="w-full py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold shadow-lg shadow-orange-500/30 transition-transform active:scale-95"
         >
-          {loading ? t.pleaseWait : mode === 'login' ? t.login : t.createAccount}
+          {loading ? 'Please wait…' : mode === 'login' ? 'Login' : 'Create account'}
         </button>
         )}
 
         {mode === 'login' && (
             <>
                 <div className="flex justify-center my-2">
-                    <span className="text-xs text-muted-foreground uppercase">{t.or}</span>
+                    <span className="text-xs text-stone-400 uppercase">Or</span>
                 </div>
                 <button
                 type="button"
                 onClick={() => login()}
-                className="w-full py-3.5 bg-card border border-border/80 hover:bg-muted text-card-foreground rounded-xl font-semibold transition active:scale-[0.99] flex items-center justify-center gap-2"
+                className="w-full py-3.5 bg-white border border-stone-800 hover:bg-black text-stone-300 rounded-xl font-semibold transition-transform active:scale-95 flex items-center justify-center gap-2"
                 >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                     <path
@@ -325,12 +225,11 @@ export default function Auth({ onAuthSuccess, language = 'en' }) {
                     d="M12 7.08c1.57 0 2.98.54 4.09 1.6l3.07-3.07C17.45 3.61 14.96 2 12 2c-4.3 0-8.01 2.47-9.82 6.09l2.85 2.84C5.84 8.78 8.28 7.08 11.2 7.08z"
                     />
                 </svg>
-                {t.google}
+                Sign in with Google
                 </button>
             </>
         )}
       </form>
-
     </div>
   );
 }

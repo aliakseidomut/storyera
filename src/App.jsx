@@ -10,7 +10,6 @@ import Library from './components/Library.jsx';
 import StoryDetail from './components/StoryDetail.jsx';
 import Chat from './components/Chat.jsx';
 import Auth from './components/Auth.jsx';
-import SettingsModal from './components/SettingsModal.jsx';
 
 // ============================================
 // MAIN APP COMPONENT
@@ -24,7 +23,6 @@ export default function App() {
   const [naughtinessLevel, setNaughtinessLevel] = useState(0);
   const [storyPrompt, setStoryPrompt] = useState('');
   const [stories, setStories] = useState([]);
-  const [translatedStories, setTranslatedStories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -40,14 +38,6 @@ export default function App() {
 
   const [choicesCount, setChoicesCount] = useState(0);
   const [isPremium, setIsPremium] = useState(false);
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [language, setLanguage] = useState(() => {
-    try {
-      return localStorage.getItem('storyera_language') || 'en';
-    } catch {
-      return 'en';
-    }
-  });
   
   const handlePayment = async () => {
     try {
@@ -60,7 +50,7 @@ export default function App() {
       if (data.url) {
         window.location.href = data.url;
       } else {
-        alert(language === 'ru' ? 'Не удалось запустить оплату.' : 'Could not initiate payment.');
+        alert('Could not initiate payment.');
       }
     } catch (err) {
       console.error('Payment error:', err);
@@ -83,35 +73,6 @@ export default function App() {
       });
     }
   }, []);
-
-  useEffect(() => {
-    document.documentElement.lang = language;
-    try {
-      localStorage.setItem('storyera_language', language);
-    } catch {
-      // ignore storage errors
-    }
-  }, [language]);
-
-  useEffect(() => {
-    const run = async () => {
-      if (!stories.length) {
-        setTranslatedStories([]);
-        return;
-      }
-      if (language === 'ru') {
-        try {
-          const translated = await aiService.translateStories(stories, 'ru');
-          setTranslatedStories(translated);
-        } catch {
-          setTranslatedStories(stories);
-        }
-      } else {
-        setTranslatedStories(stories);
-      }
-    };
-    run();
-  }, [stories, language]);
 
   const handleChoiceSelect = (choice) => {
     handleSendMessage(choice);
@@ -216,18 +177,7 @@ export default function App() {
     setCurrentChoices([]);
   };
 
-  const handleSaveSettings = (updatedUser, selectedLanguage) => {
-    setCurrentUser(updatedUser);
-    setLanguage(selectedLanguage);
-    try {
-      localStorage.setItem('storyera_user', JSON.stringify(updatedUser));
-    } catch {
-      // ignore storage errors
-    }
-    setShowSettingsModal(false);
-  };
-
-  const startChat = async () => {
+  const startChat = () => {
     setChatMessages([]);
     setCurrentChoices([]);
     setLastSceneSummary('');
@@ -251,40 +201,17 @@ export default function App() {
 
     // Set character data from predefined protagonist for this story
     if (story?.protagonist) {
-      let protagonist = story.protagonist;
-      if (language === 'ru') {
-        protagonist = await aiService.translateCharacter(protagonist, 'ru');
-      }
-      setCharacterData(protagonist);
+      setCharacterData(story.protagonist);
     }
-    const defaultOpeningMessages = language === 'ru'
-      ? [
-          'Вы получаете сообщение с незнакомого номера.',
-          'Алекс: Ты наконец ответил(а). Я не был(а) уверен(а), что ты ответишь.',
-          'Алекс: Ну что… ты меня помнишь?'
-        ]
-      : [
-          "You receive a message from a number you don't recognize.",
-          "Alex: You finally replied. I wasn't sure you would.",
-          "Alex: So… do you remember me?"
-        ];
-
-    let openingMessages = story?.plot?.opening || defaultOpeningMessages;
-    if (language === 'ru' && openingMessages.length) {
-      openingMessages = await aiService.translateLines(openingMessages, 'ru');
-    }
-
-    // Show starter choices right after opening lines so user can continue without typing.
-    const starterChoices = language === 'ru'
-      ? ['Ответить уверенно', 'Спросить, кто это', 'Проигнорировать сообщение']
-      : ['Reply confidently', 'Ask who this is', 'Ignore the message'];
+    const openingMessages = story?.plot?.opening || [
+      "You receive a message from a number you don't recognize.",
+      "Alex: You finally replied. I wasn't sure you would.",
+      "Alex: So… do you remember me?"
+    ];
     
     openingMessages.forEach((message, index) => {
       setTimeout(() => {
         addAIMessage(message);
-        if (index === openingMessages.length - 1) {
-          setCurrentChoices(starterChoices);
-        }
       }, 500 + (index * 1000));
     });
     
@@ -324,8 +251,7 @@ export default function App() {
       lastUserChoice: message,
       conversationHistory,
       flirtLevel: characterData.flirtLevel || 50,
-      boundariesLevel: characterData.boundariesLevel || 50,
-      language
+      boundariesLevel: characterData.boundariesLevel || 50
     });
     
     setIsTyping(false);
@@ -354,7 +280,7 @@ export default function App() {
     let storyTitle = 'Custom Story';
     
     if (storyPrompt) {
-      storyTitle = await aiService.generateStoryTitle(storyPrompt, language);
+      storyTitle = await aiService.generateStoryTitle(storyPrompt);
     }
 
     // Create story in database
@@ -375,22 +301,17 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-muted text-foreground flex items-center justify-center p-3 sm:p-6">
-      <div className="w-full h-full max-w-md bg-card text-card-foreground relative overflow-hidden flex flex-col rounded-2xl shadow-2xl shadow-[hsl(var(--background)/0.45)]">
-        <Header
-          currentUser={currentUser}
-          isPremium={isPremium}
-          onOpenSettings={() => setShowSettingsModal(true)}
-          onLogoClick={goToLibrary}
-        />
+    <div className="bg-black min-h-screen w-screen flex items-center justify-center p-4">
+      <div className="w-full h-full max-w-md bg-black shadow-2xl relative overflow-hidden flex flex-col rounded-2xl border border-stone-800">
+        <Header currentUser={currentUser} onLogout={handleLogout} isPremium={isPremium} />
 
-        <main className="flex-1 overflow-y-auto relative bg-background/70 backdrop-blur-[2px]">
+        <main className="flex-1 overflow-y-auto relative bg-black">
           {!currentUser && (
-            <Auth onAuthSuccess={handleAuthSuccess} language={language} />
+            <Auth onAuthSuccess={handleAuthSuccess} />
           )}
           {currentUser && (currentView === 'library' || currentView === 'landing') && (
             <Library 
-              stories={translatedStories}
+              stories={stories}
               loading={loading}
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
@@ -399,7 +320,6 @@ export default function App() {
               onStoryClick={goToStoryDetail}
               isPremium={isPremium}
               onPayment={handlePayment}
-              language={language}
             />
           )}
           {currentUser && currentView === 'story-detail' && (
@@ -407,7 +327,6 @@ export default function App() {
               story={currentStory}
               onBack={goToLibrary}
               onStartStory={startChat}
-              language={language}
             />
           )}
           {currentUser && currentView === 'chat' && (
@@ -422,7 +341,6 @@ export default function App() {
               onBack={() => goToStoryDetail(currentStory)}
               onSendMessage={handleSendMessage}
               onChoiceSelect={handleChoiceSelect}
-              language={language}
             />
           )}
         </main>
@@ -435,16 +353,6 @@ export default function App() {
             setNaughtinessLevel={setNaughtinessLevel}
             onGenerate={generateStory}
             onClose={() => setShowCreateModal(false)}
-            language={language}
-          />
-        )}
-        {showSettingsModal && currentUser && (
-          <SettingsModal
-            currentUser={currentUser}
-            language={language}
-            onSave={handleSaveSettings}
-            onClose={() => setShowSettingsModal(false)}
-            onLogout={handleLogout}
           />
         )}
       </div>
