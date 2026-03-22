@@ -8,14 +8,14 @@ export default function AgeGate({ ageConfirmed, setAgeConfirmed, onEnter }) {
           </svg>
         </div>
         <h2 className="text-2xl font-bold mb-2">Adult Content Warning</h2>
-        <p className="text-stone-500 mb-6">This application contains AI-generated stories that may include mature themes. Powered by kyarapu.com database.</p>
+        <p className="text-stone-400 mb-6">This application contains AI-generated stories that may include mature themes. Powered by kyarapu.com database.</p>
         <div className="flex items-center justify-center gap-2 mb-6">
           <input
             type="checkbox"
             id="age-confirm"
             checked={ageConfirmed}
             onChange={(e) => setAgeConfirmed(e.target.checked)}
-            className="w-5 h-5 text-orange-600 rounded focus:ring-orange-500"
+            className="w-5 h-5 text-orange-600 rounded focus:ring-red-500"
           />
           <label htmlFor="age-confirm" className="text-sm font-medium">I confirm I am 18 years or older</label>
         </div>
@@ -24,8 +24,8 @@ export default function AgeGate({ ageConfirmed, setAgeConfirmed, onEnter }) {
           disabled={!ageConfirmed}
           className={`w-full py-3 rounded-xl font-semibold transition-all ${
             ageConfirmed
-              ? 'bg-orange-600 text-white hover:bg-orange-700 cursor-pointer'
-              : 'bg-stone-300 text-stone-500 cursor-not-allowed'
+              ? 'bg-red-700 text-white hover:bg-orange-700 cursor-pointer'
+              : 'bg-stone-300 text-stone-400 cursor-not-allowed'
           }`}
         >
           Enter Application

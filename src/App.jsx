@@ -10,6 +10,7 @@ import Library from './components/Library.jsx';
 import StoryDetail from './components/StoryDetail.jsx';
 import Chat from './components/Chat.jsx';
 import Auth from './components/Auth.jsx';
+import SettingsModal from './components/SettingsModal.jsx';
 
 // ============================================
 // MAIN APP COMPONENT
@@ -23,6 +24,7 @@ export default function App() {
   const [naughtinessLevel, setNaughtinessLevel] = useState(0);
   const [storyPrompt, setStoryPrompt] = useState('');
   const [stories, setStories] = useState([]);
+  const [translatedStories, setTranslatedStories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -35,7 +37,87 @@ export default function App() {
       return null;
     }
   });
+
+  const [choicesCount, setChoicesCount] = useState(0);
+  const [isPremium, setIsPremium] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [language, setLanguage] = useState(() => {
+    try {
+      return localStorage.getItem('storyera_language') || 'en';
+    } catch {
+      return 'en';
+    }
+  });
   
+  const handlePayment = async () => {
+    try {
+      const res = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: currentUser.email }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert(language === 'ru' ? 'Не удалось запустить оплату.' : 'Could not initiate payment.');
+      }
+    } catch (err) {
+      console.error('Payment error:', err);
+    }
+  };
+
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    const session_id = query.get('session_id');
+    const email = query.get('email');
+
+    if (session_id && email) {
+      fetch('/api/verify-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id, email })
+      }).then(() => {
+        setIsPremium(true);
+        window.history.replaceState({}, document.title, "/");
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = language;
+    try {
+      localStorage.setItem('storyera_language', language);
+    } catch {
+      // ignore storage errors
+    }
+  }, [language]);
+
+  useEffect(() => {
+    const run = async () => {
+      if (!stories.length) {
+        setTranslatedStories([]);
+        return;
+      }
+      if (language === 'ru') {
+        try {
+          const translated = await aiService.translateStories(stories, 'ru');
+          setTranslatedStories(translated);
+        } catch {
+          setTranslatedStories(stories);
+        }
+      } else {
+        setTranslatedStories(stories);
+      }
+    };
+    run();
+  }, [stories, language]);
+
+  const handleChoiceSelect = (choice) => {
+    handleSendMessage(choice);
+    setChoicesCount(prev => prev + 1);
+  };
+
   const [characterData, setCharacterData] = useState({
     name: 'Alex',
     gender: 'Male',
@@ -66,7 +148,26 @@ export default function App() {
   // Load data on mount
   useEffect(() => {
     loadStories();
-  }, []);
+    if (currentUser) {
+      checkPremiumStatus();
+    }
+  }, [currentUser]);
+
+  const checkPremiumStatus = async () => {
+    console.log('Checking premium for:', currentUser?.email);
+    try {
+      const res = await fetch('/api/me', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: currentUser?.email })
+      });
+      const data = await res.json();
+      console.log('Premium status check response:', data);
+      setIsPremium(!!data.isPremium);
+    } catch (err) {
+      console.error('Failed to check premium:', err);
+    }
+  };
 
   // Load stories from database
   const loadStories = async () => {
@@ -115,7 +216,18 @@ export default function App() {
     setCurrentChoices([]);
   };
 
-  const startChat = () => {
+  const handleSaveSettings = (updatedUser, selectedLanguage) => {
+    setCurrentUser(updatedUser);
+    setLanguage(selectedLanguage);
+    try {
+      localStorage.setItem('storyera_user', JSON.stringify(updatedUser));
+    } catch {
+      // ignore storage errors
+    }
+    setShowSettingsModal(false);
+  };
+
+  const startChat = async () => {
     setChatMessages([]);
     setCurrentChoices([]);
     setLastSceneSummary('');
@@ -139,17 +251,40 @@ export default function App() {
 
     // Set character data from predefined protagonist for this story
     if (story?.protagonist) {
-      setCharacterData(story.protagonist);
+      let protagonist = story.protagonist;
+      if (language === 'ru') {
+        protagonist = await aiService.translateCharacter(protagonist, 'ru');
+      }
+      setCharacterData(protagonist);
     }
-    const openingMessages = story?.plot?.opening || [
-      "You receive a message from a number you don't recognize.",
-      "Alex: You finally replied. I wasn't sure you would.",
-      "Alex: So… do you remember me?"
-    ];
+    const defaultOpeningMessages = language === 'ru'
+      ? [
+          'Вы получаете сообщение с незнакомого номера.',
+          'Алекс: Ты наконец ответил(а). Я не был(а) уверен(а), что ты ответишь.',
+          'Алекс: Ну что… ты меня помнишь?'
+        ]
+      : [
+          "You receive a message from a number you don't recognize.",
+          "Alex: You finally replied. I wasn't sure you would.",
+          "Alex: So… do you remember me?"
+        ];
+
+    let openingMessages = story?.plot?.opening || defaultOpeningMessages;
+    if (language === 'ru' && openingMessages.length) {
+      openingMessages = await aiService.translateLines(openingMessages, 'ru');
+    }
+
+    // Show starter choices right after opening lines so user can continue without typing.
+    const starterChoices = language === 'ru'
+      ? ['Ответить уверенно', 'Спросить, кто это', 'Проигнорировать сообщение']
+      : ['Reply confidently', 'Ask who this is', 'Ignore the message'];
     
     openingMessages.forEach((message, index) => {
       setTimeout(() => {
         addAIMessage(message);
+        if (index === openingMessages.length - 1) {
+          setCurrentChoices(starterChoices);
+        }
       }, 500 + (index * 1000));
     });
     
@@ -166,6 +301,7 @@ export default function App() {
     setLastUserChoice(message);
     setCurrentChoices([]); // Clear previous choices
     setIsTyping(true);
+    setChoicesCount(prev => prev + 1);
 
     // Build conversation history for context
     const conversationHistory = chatMessages.map(m => ({
@@ -188,13 +324,11 @@ export default function App() {
       lastUserChoice: message,
       conversationHistory,
       flirtLevel: characterData.flirtLevel || 50,
-      boundariesLevel: characterData.boundariesLevel || 50
+      boundariesLevel: characterData.boundariesLevel || 50,
+      language
     });
     
     setIsTyping(false);
-    
-    // Update story state (simplified - in real implementation, AI could return state updates)
-    // For now, we'll update based on user choices heuristically
     
     // Extract scene and choices from response
     const sceneText = response.scene || response;
@@ -215,16 +349,12 @@ export default function App() {
     }, 300);
   };
 
-  const handleChoiceSelect = (choice) => {
-    handleSendMessage(choice);
-  };
-
   // Story Generation
   const generateStory = async () => {
     let storyTitle = 'Custom Story';
     
     if (storyPrompt) {
-      storyTitle = await aiService.generateStoryTitle(storyPrompt);
+      storyTitle = await aiService.generateStoryTitle(storyPrompt, language);
     }
 
     // Create story in database
@@ -245,23 +375,31 @@ export default function App() {
   };
 
   return (
-    <div className="bg-stone-200 min-h-screen w-screen flex items-center justify-center p-4">
-      <div className="w-full h-full max-w-md bg-stone-50 shadow-2xl relative overflow-hidden flex flex-col rounded-2xl">
-        <Header currentUser={currentUser} onLogout={handleLogout} />
+    <div className="min-h-screen w-full bg-muted text-foreground flex items-center justify-center p-3 sm:p-6">
+      <div className="w-full h-full max-w-md bg-card text-card-foreground relative overflow-hidden flex flex-col rounded-2xl shadow-2xl shadow-[hsl(var(--background)/0.45)]">
+        <Header
+          currentUser={currentUser}
+          isPremium={isPremium}
+          onOpenSettings={() => setShowSettingsModal(true)}
+          onLogoClick={goToLibrary}
+        />
 
-        <main className="flex-1 overflow-y-auto relative bg-stone-50">
+        <main className="flex-1 overflow-y-auto relative bg-background/70 backdrop-blur-[2px]">
           {!currentUser && (
-            <Auth onAuthSuccess={handleAuthSuccess} />
+            <Auth onAuthSuccess={handleAuthSuccess} language={language} />
           )}
           {currentUser && (currentView === 'library' || currentView === 'landing') && (
             <Library 
-              stories={stories}
+              stories={translatedStories}
               loading={loading}
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
               selectedCategory={selectedCategory}
               setSelectedCategory={setSelectedCategory}
               onStoryClick={goToStoryDetail}
+              isPremium={isPremium}
+              onPayment={handlePayment}
+              language={language}
             />
           )}
           {currentUser && currentView === 'story-detail' && (
@@ -269,6 +407,7 @@ export default function App() {
               story={currentStory}
               onBack={goToLibrary}
               onStartStory={startChat}
+              language={language}
             />
           )}
           {currentUser && currentView === 'chat' && (
@@ -277,9 +416,13 @@ export default function App() {
               chatMessages={chatMessages}
               isTyping={isTyping}
               choices={currentChoices}
+              choicesCount={choicesCount}
+              isPremium={isPremium}
+              onPayment={handlePayment}
               onBack={() => goToStoryDetail(currentStory)}
               onSendMessage={handleSendMessage}
               onChoiceSelect={handleChoiceSelect}
+              language={language}
             />
           )}
         </main>
@@ -292,6 +435,16 @@ export default function App() {
             setNaughtinessLevel={setNaughtinessLevel}
             onGenerate={generateStory}
             onClose={() => setShowCreateModal(false)}
+            language={language}
+          />
+        )}
+        {showSettingsModal && currentUser && (
+          <SettingsModal
+            currentUser={currentUser}
+            language={language}
+            onSave={handleSaveSettings}
+            onClose={() => setShowSettingsModal(false)}
+            onLogout={handleLogout}
           />
         )}
       </div>

@@ -1,18 +1,33 @@
-export default function Header({ currentUser, onLogout }) {
+import { Settings } from 'lucide-react';
+
+export default function Header({ currentUser, isPremium, onOpenSettings, onLogoClick }) {
+  const identityLabel = currentUser?.name?.trim() || currentUser?.email || '';
+
   return (
-    <header className="px-6 py-4 flex justify-between items-center bg-white/80 backdrop-blur-md border-b border-stone-100 z-20">
-      <h1 className="text-xl font-bold tracking-wider text-stone-800">STORIERA</h1>
-      <div className="flex gap-3 items-center">
+    <header className="px-5 py-4 flex justify-between items-center bg-card/90 backdrop-blur-md border-b border-border/70 z-20">
+      <button
+        type="button"
+        onClick={onLogoClick}
+        className="text-lg font-bold tracking-[0.12em] text-foreground hover:text-primary transition-colors"
+      >
+        STORIERA
+      </button>
+      <div className="flex items-center">
         {currentUser && (
           <>
-            <span className="text-xs text-stone-500 max-w-[120px] truncate">
-              {currentUser.email}
-            </span>
+            {isPremium && <span className="text-[10px] bg-primary text-primary-foreground px-2 py-0.5 rounded-full font-semibold shadow-md shadow-[hsl(var(--primary)/0.35)]">PRO</span>}
+            <div className="flex items-center gap-1.5 ml-2">
+              {currentUser.picture && <img src={currentUser.picture} className="w-8 h-8 rounded-full border border-border" alt="Avatar" />}
+              <span className="text-xs text-muted-foreground max-w-[110px] truncate">
+                {identityLabel}
+              </span>
+            </div>
             <button
-              onClick={onLogout}
-              className="text-xs font-semibold px-3 py-1.5 rounded-full border border-stone-300 text-stone-600 hover:bg-stone-100 transition-colors"
+              onClick={onOpenSettings}
+              className="w-8 h-8 ml-3 rounded-full border border-border/80 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex items-center justify-center"
+              aria-label="Settings"
             >
-              Logout
+              <Settings className="w-4 h-4" strokeWidth={2} />
             </button>
           </>
         )}

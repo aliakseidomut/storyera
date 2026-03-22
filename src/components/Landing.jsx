@@ -8,10 +8,10 @@ export default function Landing({ onStartStory, onStoryClick, stories }) {
     <div className="p-6 space-y-8 pb-20 animate-fade-in">
       <div className="text-center space-y-4 pt-4">
         <h2 className="text-3xl font-bold leading-tight">Become the hero<br />of your own story</h2>
-        <p className="text-stone-500 text-sm leading-relaxed">Interactive AI narratives where every choice changes the plot.</p>
+        <p className="text-stone-400 text-sm leading-relaxed">Interactive AI narratives where every choice changes the plot.</p>
         <button
           onClick={onStartStory}
-          className="w-full py-3.5 bg-orange-500 hover:bg-orange-600 text-white rounded-full font-semibold shadow-lg shadow-orange-500/30 transition-transform active:scale-95"
+          className="w-full py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-full font-semibold shadow-lg shadow-orange-500/30 transition-transform active:scale-95"
         >
           Start Your Story
         </button>
@@ -29,7 +29,7 @@ export default function Landing({ onStartStory, onStoryClick, stories }) {
             alt="Featured Story"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-5">
-            <span className="bg-orange-500 text-white text-[10px] font-bold px-2 py-1 rounded-full w-fit mb-2">NEW</span>
+            <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-full w-fit mb-2">NEW</span>
             <h3 className="text-white text-2xl font-bold">{featured.title}</h3>
             <p className="text-stone-200 text-sm mt-1 line-clamp-2">{featured.description}</p>
             <button className="mt-4 w-full bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white py-2 rounded-lg text-sm font-semibold transition-colors">
@@ -48,7 +48,7 @@ export default function Landing({ onStartStory, onStoryClick, stories }) {
               className="bg-white rounded-2xl overflow-hidden shadow-sm border border-stone-100 cursor-pointer hover:shadow-md transition-all"
               onClick={() => onStoryClick(story)}
             >
-              <div className="h-28 bg-stone-200 relative">
+              <div className="h-28 bg-stone-950 relative">
                 <img src={story.image} className="w-full h-full object-cover" alt={story.title} />
                 <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-transparent to-transparent flex items-end justify-start p-3">
                   <span className="bg-black/60 text-white px-2 py-0.5 rounded-full text-[10px] backdrop-blur-sm">{story.category}</span>
@@ -59,7 +59,7 @@ export default function Landing({ onStartStory, onStoryClick, stories }) {
               </div>
               <div className="p-4">
                 <h4 className="font-bold text-base">{story.title}</h4>
-                <p className="text-xs text-stone-500 mt-1 line-clamp-2">{story.description}</p>
+                <p className="text-xs text-stone-400 mt-1 line-clamp-2">{story.description}</p>
               </div>
             </div>
           ))}

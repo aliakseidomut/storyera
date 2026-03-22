@@ -16,7 +16,17 @@ export class DatabaseService implements OnModuleInit {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           email TEXT UNIQUE NOT NULL,
           password_hash TEXT NOT NULL,
+          is_premium INTEGER DEFAULT 0,
+          is_verified INTEGER DEFAULT 0,
           created_at TEXT NOT NULL
+        )
+      `);
+
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS user_verifications (
+          email TEXT PRIMARY KEY,
+          code TEXT NOT NULL,
+          expires_at TEXT NOT NULL
         )
       `);
 

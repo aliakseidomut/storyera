@@ -15,7 +15,7 @@ export default function Character({ characterData, setCharacterData, onContinue,
   return (
     <div className="p-6 h-full flex flex-col animate-fade-in">
       <div className="flex items-center gap-2 mb-6">
-        <button onClick={onBack} className="p-2 -ml-2 text-stone-400 hover:text-stone-800">
+        <button onClick={onBack} className="p-2 -ml-2 text-stone-400 hover:text-white">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
           </svg>
@@ -35,17 +35,17 @@ export default function Character({ characterData, setCharacterData, onContinue,
 
       <div className="space-y-4 flex-1 overflow-y-auto">
         <div>
-          <label className="block text-xs font-bold text-stone-500 uppercase mb-1">Name</label>
+          <label className="block text-xs font-bold text-stone-400 uppercase mb-1">Name</label>
           <input
             type="text"
             value={characterData.name}
             onChange={(e) => setCharacterData(prev => ({ ...prev, name: e.target.value }))}
-            className="w-full bg-white border border-stone-200 rounded-xl px-4 py-3 text-stone-800 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all"
+            className="w-full bg-white border border-stone-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-all"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-stone-500 uppercase mb-2">Gender</label>
+          <label className="block text-xs font-bold text-stone-400 uppercase mb-2">Gender</label>
           <div className="flex gap-2">
             {['Male', 'Female', 'Other'].map(gender => (
               <button
@@ -53,8 +53,8 @@ export default function Character({ characterData, setCharacterData, onContinue,
                 onClick={() => selectGender(gender)}
                 className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
                   characterData.gender === gender
-                    ? 'bg-orange-500 text-white shadow-md shadow-orange-200'
-                    : 'bg-white border border-stone-200 text-stone-500 hover:bg-stone-50'
+                    ? 'bg-red-600 text-white shadow-md shadow-orange-200'
+                    : 'bg-white border border-stone-800 text-stone-400 hover:bg-black'
                 }`}
               >
                 {gender}
@@ -65,11 +65,11 @@ export default function Character({ characterData, setCharacterData, onContinue,
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-bold text-stone-500 uppercase mb-1">Age Range</label>
+            <label className="block text-xs font-bold text-stone-400 uppercase mb-1">Age Range</label>
             <select
               value={characterData.age}
               onChange={(e) => setCharacterData(prev => ({ ...prev, age: e.target.value }))}
-              className="w-full bg-white border border-stone-200 rounded-xl px-3 py-3 text-sm focus:outline-none"
+              className="w-full bg-white border border-stone-800 rounded-xl px-3 py-3 text-sm focus:outline-none"
             >
               <option>18-25</option>
               <option>26-35</option>
@@ -77,11 +77,11 @@ export default function Character({ characterData, setCharacterData, onContinue,
             </select>
           </div>
           <div>
-            <label className="block text-xs font-bold text-stone-500 uppercase mb-1">Archetype</label>
+            <label className="block text-xs font-bold text-stone-400 uppercase mb-1">Archetype</label>
             <select
               value={characterData.archetype}
               onChange={(e) => setCharacterData(prev => ({ ...prev, archetype: e.target.value }))}
-              className="w-full bg-white border border-stone-200 rounded-xl px-3 py-3 text-sm focus:outline-none"
+              className="w-full bg-white border border-stone-800 rounded-xl px-3 py-3 text-sm focus:outline-none"
             >
               <option>Survivor</option>
               <option>Hero</option>
@@ -91,7 +91,7 @@ export default function Character({ characterData, setCharacterData, onContinue,
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-stone-500 uppercase mb-2">Personality Traits</label>
+          <label className="block text-xs font-bold text-stone-400 uppercase mb-2">Personality Traits</label>
           <div className="grid grid-cols-2 gap-2">
             {['bold', 'mysterious', 'curious', 'romantic', 'sarcastic'].map(trait => (
               <label
@@ -99,14 +99,14 @@ export default function Character({ characterData, setCharacterData, onContinue,
                 className={`flex items-center gap-2 p-3 border rounded-xl cursor-pointer transition-all ${
                   characterData.traits.includes(trait)
                     ? 'bg-orange-50 border-orange-300'
-                    : 'bg-white border-stone-200 hover:border-orange-300'
+                    : 'bg-white border-stone-800 hover:border-orange-300'
                 }`}
               >
                 <input
                   type="checkbox"
                   checked={characterData.traits.includes(trait)}
                   onChange={() => toggleTrait(trait)}
-                  className="text-orange-500 focus:ring-orange-500 rounded"
+                  className="text-orange-500 focus:ring-red-500 rounded"
                 />
                 <span className="text-sm capitalize">{trait}</span>
               </label>
@@ -115,7 +115,7 @@ export default function Character({ characterData, setCharacterData, onContinue,
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-stone-500 uppercase mb-2">
+          <label className="block text-xs font-bold text-stone-400 uppercase mb-2">
             Flirt Level: {characterData.flirtLevel || 50}%
           </label>
           <input
@@ -124,7 +124,7 @@ export default function Character({ characterData, setCharacterData, onContinue,
             max="100"
             value={characterData.flirtLevel || 50}
             onChange={(e) => setCharacterData(prev => ({ ...prev, flirtLevel: parseInt(e.target.value) }))}
-            className="w-full h-2 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-orange-500"
+            className="w-full h-2 bg-stone-950 rounded-lg appearance-none cursor-pointer accent-orange-500"
           />
           <div className="flex justify-between text-xs text-stone-400 mt-1">
             <span>Reserved</span>
@@ -133,7 +133,7 @@ export default function Character({ characterData, setCharacterData, onContinue,
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-stone-500 uppercase mb-2">
+          <label className="block text-xs font-bold text-stone-400 uppercase mb-2">
             Boundaries Level: {characterData.boundariesLevel || 50}%
           </label>
           <input
@@ -142,7 +142,7 @@ export default function Character({ characterData, setCharacterData, onContinue,
             max="100"
             value={characterData.boundariesLevel || 50}
             onChange={(e) => setCharacterData(prev => ({ ...prev, boundariesLevel: parseInt(e.target.value) }))}
-            className="w-full h-2 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-orange-500"
+            className="w-full h-2 bg-stone-950 rounded-lg appearance-none cursor-pointer accent-orange-500"
           />
           <div className="flex justify-between text-xs text-stone-400 mt-1">
             <span>Open</span>
@@ -153,7 +153,7 @@ export default function Character({ characterData, setCharacterData, onContinue,
 
       <button
         onClick={onContinue}
-        className="w-full mt-6 py-3.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold shadow-lg shadow-orange-500/30 transition-transform active:scale-95"
+        className="w-full mt-6 py-3.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold shadow-lg shadow-orange-500/30 transition-transform active:scale-95"
       >
         Continue
       </button>
