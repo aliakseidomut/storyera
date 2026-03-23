@@ -2,7 +2,7 @@ export default function BottomNav({ currentView, onViewChange, language }) {
   const isRu = language === 'ru';
   const t = {
     library: isRu ? 'Библиотека' : 'Library',
-    continue: isRu ? 'Продолжить' : 'Continue',
+    continue: isRu ? 'Мои книги' : 'My Books',
     settings: isRu ? 'Настройки' : 'Settings',
   };
 

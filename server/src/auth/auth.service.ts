@@ -269,6 +269,55 @@ export class AuthService {
     });
   }
 
+  async addBookmark(user_id: number, story_id: number) {
+    if (!user_id || !story_id) {
+      throw new UnauthorizedException('Missing user id or story id');
+    }
+
+    const db = this.dbService.getDatabase();
+    const createdAt = new Date().toISOString();
+    return new Promise<{ success: boolean }>((resolve, reject) => {
+      db.run(
+        'INSERT OR REPLACE INTO user_bookmarks (user_id, story_id, created_at) VALUES (?, ?, ?)',
+        [user_id, story_id, createdAt],
+        (err) => (err ? reject(err) : resolve({ success: true })),
+      );
+    });
+  }
+
+  async removeBookmark(user_id: number, story_id: number) {
+    if (!user_id || !story_id) {
+      throw new UnauthorizedException('Missing user id or story id');
+    }
+
+    const db = this.dbService.getDatabase();
+    return new Promise((resolve, reject) => {
+      db.run(
+        'DELETE FROM user_bookmarks WHERE user_id = ? AND story_id = ?',
+        [user_id, story_id],
+        function (err) {
+          if (err) return reject(err);
+          resolve({ success: true, deleted: this.changes > 0 });
+        },
+      );
+    });
+  }
+
+  async getAllBookmarks(user_id: number) {
+    if (!user_id) {
+      throw new UnauthorizedException('Missing user id');
+    }
+
+    const db = this.dbService.getDatabase();
+    return new Promise((resolve, reject) => {
+      db.all(
+        'SELECT * FROM user_bookmarks WHERE user_id = ? ORDER BY created_at DESC',
+        [user_id],
+        (err, rows) => (err ? reject(err) : resolve(rows)),
+      );
+    });
+  }
+
   async resolveUserIdByEmail(email?: string, createIfMissing = false): Promise<number | null> {
     if (!email) return null;
     const normalizedEmail = email.trim().toLowerCase();

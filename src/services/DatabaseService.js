@@ -75,6 +75,36 @@ export const DatabaseService = {
     return this.parseJsonResponse(response, []);
   },
 
+  async getAllBookmarks(userId, email) {
+    const response = await fetch('/api/all-bookmarks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, email })
+    });
+    await this.ensureOk(response, '/api/all-bookmarks');
+    return this.parseJsonResponse(response, []);
+  },
+
+  async addBookmark(userId, storyId, email) {
+    const response = await fetch('/api/bookmark', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, email, story_id: storyId })
+    });
+    await this.ensureOk(response, '/api/bookmark');
+    return this.parseJsonResponse(response, { success: response.ok });
+  },
+
+  async removeBookmark(userId, storyId, email) {
+    const response = await fetch('/api/unbookmark', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, email, story_id: storyId })
+    });
+    await this.ensureOk(response, '/api/unbookmark');
+    return this.parseJsonResponse(response, { success: response.ok });
+  },
+
   async createStory(storyData) {
     // Placeholder - usually admin feature or not implemented yet
     return { id: Math.floor(Math.random() * 1000) };

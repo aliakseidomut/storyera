@@ -27,6 +27,7 @@ export default function App() {
   const [stories, setStories] = useState([]);
   const [translatedStories, setTranslatedStories] = useState([]);
   const [progress, setProgress] = useState({});
+  const [bookmarks, setBookmarks] = useState({});
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -62,6 +63,16 @@ export default function App() {
                 setProgress(progMap);
             }
         }).catch(e => console.error('Failed to load all progress', e));
+
+        DatabaseService.getAllBookmarks(currentUser.id, currentUser.email).then(allBookmarks => {
+            if (Array.isArray(allBookmarks)) {
+                const bookmarkMap = {};
+                allBookmarks.forEach(b => {
+                    bookmarkMap[b.story_id] = b;
+                });
+                setBookmarks(bookmarkMap);
+            }
+        }).catch(e => console.error('Failed to load bookmarks', e));
     }
   }, [currentUser]);
 
@@ -261,6 +272,37 @@ export default function App() {
     setCurrentStory(null);
     setChatMessages([]);
     setCurrentChoices([]);
+    setProgress({});
+    setBookmarks({});
+  };
+
+  const toggleBookmark = async (story) => {
+    const targetStory = story || currentStory;
+    if (!targetStory || (!currentUser?.id && !currentUser?.email)) return;
+
+    try {
+      const isSaved = !!bookmarks[targetStory.id];
+      if (isSaved) {
+        await DatabaseService.removeBookmark(currentUser.id, targetStory.id, currentUser.email);
+        setBookmarks(prev => {
+          const next = { ...prev };
+          delete next[targetStory.id];
+          return next;
+        });
+      } else {
+        await DatabaseService.addBookmark(currentUser.id, targetStory.id, currentUser.email);
+        setBookmarks(prev => ({
+          ...prev,
+          [targetStory.id]: {
+            story_id: targetStory.id,
+            user_id: currentUser.id || null,
+            created_at: new Date().toISOString(),
+          },
+        }));
+      }
+    } catch (e) {
+      console.error('Failed to toggle bookmark', e);
+    }
   };
 
   const handleSaveSettings = (updatedUser, selectedLanguage) => {
@@ -381,16 +423,28 @@ export default function App() {
 
     // Persist "started story" immediately, so it appears in Continue section even before first user choice.
     const seededMessages = openingMessages.map((line) => ({ role: 'ai', content: line }));
+    const seededSummary = openingMessages[openingMessages.length - 1] || '';
+    // Optimistic local update: mark as started instantly in UI.
+    setProgress(prev => ({
+      ...prev,
+      [selectedStory.id]: {
+        story_id: selectedStory.id,
+        user_id: currentUser?.id || null,
+        last_scene_summary: seededSummary,
+        choices_count: 0,
+        updated_at: new Date().toISOString(),
+      },
+    }));
     setChatMessages(seededMessages);
     setCurrentChoices(starterChoices);
-    setLastSceneSummary(openingMessages[openingMessages.length - 1] || '');
+    setLastSceneSummary(seededSummary);
     setLastUserChoice('');
     await persistProgress({
       storyId: selectedStory.id,
       messages: seededMessages,
       state: initialStoryState,
       choices: 0,
-      sceneSummary: openingMessages[openingMessages.length - 1] || '',
+      sceneSummary: seededSummary,
       userChoice: '',
     });
 
@@ -533,13 +587,17 @@ export default function App() {
               onPayment={handlePayment}
               language={language}
               progress={progress}
+              bookmarks={bookmarks}
+              onToggleBookmark={toggleBookmark}
             />
           )}
           {currentUser && currentView === 'continue' && (
             <ContinueReading
               stories={translatedStories}
               progress={progress}
+              bookmarks={bookmarks}
               onStoryClick={goToStoryDetail}
+              language={language}
             />
           )}
           {currentUser && currentView === 'story-detail' && (
@@ -548,6 +606,8 @@ export default function App() {
               onBack={goToLibrary}
               onStartStory={startChat}
               onRestartStory={() => restartStory(currentStory)}
+              onToggleBookmark={() => toggleBookmark(currentStory)}
+              isBookmarked={!!bookmarks[currentStory?.id]}
               hasProgress={!!progress[currentStory?.id]}
               language={language}
             />

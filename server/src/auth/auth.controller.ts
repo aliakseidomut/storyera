@@ -60,6 +60,12 @@ export class AuthController {
     return this.authService.getAllProgress(userId);
   }
 
+  @Post('all-bookmarks')
+  async getAllBookmarks(@Body() body: { user_id?: number; email?: string }) {
+    const userId = await this.resolveUserId(body);
+    return this.authService.getAllBookmarks(userId);
+  }
+
   @Post('save-progress')
   async saveProgress(@Body() body: any) {
     const userId = await this.resolveUserId(body);
@@ -76,6 +82,18 @@ export class AuthController {
   async clearProgress(@Body() body: { user_id?: number; email?: string; story_id: number }) {
     const userId = await this.resolveUserId(body);
     return this.authService.clearProgress(userId, body.story_id);
+  }
+
+  @Post('bookmark')
+  async addBookmark(@Body() body: { user_id?: number; email?: string; story_id: number }) {
+    const userId = await this.resolveUserId(body);
+    return this.authService.addBookmark(userId, body.story_id);
+  }
+
+  @Post('unbookmark')
+  async removeBookmark(@Body() body: { user_id?: number; email?: string; story_id: number }) {
+    const userId = await this.resolveUserId(body);
+    return this.authService.removeBookmark(userId, body.story_id);
   }
 
   @Post('forgot-password')

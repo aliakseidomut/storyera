@@ -1,10 +1,20 @@
-export default function StoryDetail({ story, onBack, onStartStory, onRestartStory, hasProgress = false, language = 'en' }) {
+export default function StoryDetail({
+  story,
+  onBack,
+  onStartStory,
+  onRestartStory,
+  onToggleBookmark,
+  isBookmarked = false,
+  hasProgress = false,
+  language = 'en'
+}) {
   const isRu = language === 'ru';
   const t = {
     characters: isRu ? 'Персонажи' : 'Characters',
     startStory: isRu ? 'Начать историю' : 'Start Story',
     continueStory: isRu ? 'Продолжить' : 'Continue',
     restartStory: isRu ? 'Перечитать заново' : 'Read Again',
+    bookmarkAction: isRu ? 'Закладка' : 'Bookmark',
   };
 
   return (
@@ -18,6 +28,19 @@ export default function StoryDetail({ story, onBack, onStartStory, onRestartStor
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <button
+          onClick={onToggleBookmark}
+          aria-label={t.bookmarkAction}
+          className={`absolute top-4 right-4 w-9 h-9 backdrop-blur-md rounded-full flex items-center justify-center z-10 transition border ${
+            isBookmarked
+              ? 'bg-primary/90 text-primary-foreground border-primary/80'
+              : 'bg-card/80 text-card-foreground border-border/80 hover:bg-muted'
+          }`}
+        >
+          <svg className="w-4 h-4" fill={isBookmarked ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-4-7 4V5z" />
           </svg>
         </button>
       </div>

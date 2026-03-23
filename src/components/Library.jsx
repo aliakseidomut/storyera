@@ -10,8 +10,10 @@ export default function Library({
   onStoryClick,
   isPremium,
   onPayment,
-   language,
-   progress = {}
+  language,
+  progress = {},
+  bookmarks = {},
+  onToggleBookmark,
 }) {
   const isRu = language === 'ru';
   
@@ -98,6 +100,22 @@ export default function Library({
                 <div className="h-32 relative overflow-hidden">
                   <img src={story.image} className="w-full h-full object-cover rounded-t-2xl" alt={story.title} />
                   <div className="absolute inset-0 bg-black/40" />
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleBookmark?.(story);
+                    }}
+                    aria-label={isRu ? 'Закладка' : 'Bookmark'}
+                    className={`absolute top-2 right-2 w-8 h-8 rounded-full border backdrop-blur-md flex items-center justify-center transition ${
+                      bookmarks[story.id]
+                        ? 'bg-primary/90 text-primary-foreground border-primary/80'
+                        : 'bg-card/80 text-card-foreground border-border/80 hover:bg-muted'
+                    }`}
+                  >
+                    <svg className="w-4 h-4" fill={bookmarks[story.id] ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-4-7 4V5z" />
+                    </svg>
+                  </button>
                 </div>
                 <div className="p-4">
                   <h4 className="font-bold text-sm text-foreground">{story.title}</h4>

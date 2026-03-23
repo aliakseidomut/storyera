@@ -55,6 +55,15 @@ export class DatabaseService implements OnModuleInit {
       `);
 
       this.db.run(`
+        CREATE TABLE IF NOT EXISTS user_bookmarks (
+          user_id INTEGER NOT NULL,
+          story_id INTEGER NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY(user_id, story_id)
+        )
+      `);
+
+      this.db.run(`
         CREATE TABLE IF NOT EXISTS stories (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           title TEXT NOT NULL,
