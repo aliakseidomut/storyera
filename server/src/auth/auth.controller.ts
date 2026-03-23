@@ -25,7 +25,7 @@ export class AuthController {
 
   private async resolveUserId(body: { user_id?: number; email?: string }) {
     if (body?.user_id) return body.user_id;
-    const resolved = await this.authService.resolveUserIdByEmail(body?.email);
+    const resolved = await this.authService.resolveUserIdByEmail(body?.email, true);
     if (!resolved) {
       throw new UnauthorizedException('Missing or invalid user identity');
     }

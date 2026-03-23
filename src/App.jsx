@@ -131,7 +131,6 @@ export default function App() {
 
   const handleChoiceSelect = (choice) => {
     handleSendMessage(choice);
-    setChoicesCount(prev => prev + 1);
   };
 
   const [characterData, setCharacterData] = useState({
@@ -160,6 +159,17 @@ export default function App() {
   const [currentChoices, setCurrentChoices] = useState([]);
   const [lastSceneSummary, setLastSceneSummary] = useState('');
   const [lastUserChoice, setLastUserChoice] = useState('');
+  const initialStoryState = {
+    trust: 50,
+    attraction: 50,
+    tension: 30,
+    mystery: 70,
+    control: 50,
+    risk: 30,
+    boundaries: 50,
+    pressure: 30,
+    emotional_stability: 50,
+  };
 
   // Load data on mount
   useEffect(() => {
@@ -310,7 +320,7 @@ export default function App() {
             const parsedHistory = savedProgress.chat_history ? JSON.parse(savedProgress.chat_history) : [];
             const parsedState = savedProgress.story_state ? JSON.parse(savedProgress.story_state) : {};
             setChatMessages(Array.isArray(parsedHistory) ? parsedHistory : []);
-            setStoryState(parsedState || {});
+            setStoryState(parsedState && Object.keys(parsedState).length ? parsedState : initialStoryState);
             setChoicesCount(savedProgress.choices_count);
             setLastSceneSummary(savedProgress.last_scene_summary);
             setLastUserChoice(savedProgress.last_user_choice);
@@ -334,17 +344,7 @@ export default function App() {
     setMessageCounter(0);
     
     // Reset story state to initial values
-    setStoryState({
-      trust: 50,
-      attraction: 50,
-      tension: 30,
-      mystery: 70,
-      control: 50,
-      risk: 30,
-      boundaries: 50,
-      pressure: 30,
-      emotional_stability: 50
-    });
+    setStoryState(initialStoryState);
     
     // Используем готовый сюжет
     const s = selectedStory;
@@ -378,35 +378,22 @@ export default function App() {
     const starterChoices = language === 'ru'
       ? ['Ответить уверенно', 'Спросить, кто это', 'Проигнорировать сообщение']
       : ['Reply confidently', 'Ask who this is', 'Ignore the message'];
-    
-    openingMessages.forEach((message, index) => {
-      setTimeout(() => {
-        addAIMessage(message);
-        if (index === openingMessages.length - 1) {
-          setCurrentChoices(starterChoices);
-          const seededMessages = openingMessages.map((line) => ({ role: 'ai', content: line }));
-          persistProgress({
-            storyId: selectedStory.id,
-            messages: seededMessages,
-            state: {
-              trust: 50,
-              attraction: 50,
-              tension: 30,
-              mystery: 70,
-              control: 50,
-              risk: 30,
-              boundaries: 50,
-              pressure: 30,
-              emotional_stability: 50,
-            },
-            choices: 0,
-            sceneSummary: openingMessages[openingMessages.length - 1] || '',
-            userChoice: '',
-          });
-        }
-      }, 500 + (index * 1000));
+
+    // Persist "started story" immediately, so it appears in Continue section even before first user choice.
+    const seededMessages = openingMessages.map((line) => ({ role: 'ai', content: line }));
+    setChatMessages(seededMessages);
+    setCurrentChoices(starterChoices);
+    setLastSceneSummary(openingMessages[openingMessages.length - 1] || '');
+    setLastUserChoice('');
+    await persistProgress({
+      storyId: selectedStory.id,
+      messages: seededMessages,
+      state: initialStoryState,
+      choices: 0,
+      sceneSummary: openingMessages[openingMessages.length - 1] || '',
+      userChoice: '',
     });
-    
+
     setCurrentView('chat');
   };
 

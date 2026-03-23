@@ -67,11 +67,17 @@ export default function Chat({
             alt={story?.title || 'Scene'}
           />
           <div className="space-y-3 text-sm leading-relaxed text-foreground">
-            {chatMessages
-              .filter((msg) => msg.role !== 'user')
-              .map((msg, idx) => (
-                <p key={idx} className="whitespace-pre-wrap">{msg.content}</p>
-              ))}
+            {chatMessages.map((msg, idx) => (
+              <div key={idx}>
+                {msg.role === 'user' ? (
+                  <p className="whitespace-pre-wrap text-primary font-medium">
+                    {msg.content}
+                  </p>
+                ) : (
+                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                )}
+              </div>
+            ))}
             {isTyping && (
               <p className="text-xs text-muted-foreground italic">
                 {t.unfolding}<span className="animate-pulse">...</span>

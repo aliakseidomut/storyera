@@ -7,7 +7,9 @@ export class DatabaseService implements OnModuleInit {
   private db!: sqlite3.Database;
 
   onModuleInit() {
-    const dbPath = path.join(process.cwd(), 'storyera.db');
+    // Use a stable DB file location regardless of where the server process is started from.
+    // __dirname points to server/src/db in dev and server/dist/db in build.
+    const dbPath = path.resolve(__dirname, '../../storyera.db');
     this.db = new sqlite3.Database(dbPath);
 
     this.db.serialize(() => {
@@ -27,6 +29,14 @@ export class DatabaseService implements OnModuleInit {
           email TEXT PRIMARY KEY,
           password_hash TEXT NOT NULL,
           created_at TEXT NOT NULL
+        )
+      `);
+
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS user_verifications (
+          email TEXT PRIMARY KEY,
+          code TEXT NOT NULL,
+          expires_at TEXT NOT NULL
         )
       `);
 
@@ -197,6 +207,18 @@ export class DatabaseService implements OnModuleInit {
         },
       }
     ];
+    const allowedStoryIds = [1, 2];
+
+    // Keep only two base stories in DB.
+    this.db.run(
+      `DELETE FROM stories WHERE id NOT IN (${allowedStoryIds.map(() => '?').join(',')})`,
+      allowedStoryIds,
+      (err) => {
+        if (err) {
+          console.error('Failed to trim stories:', err);
+        }
+      },
+    );
 
     this.db.get('SELECT COUNT(*) as cnt FROM stories', (err, row: any) => {
       if (err) {
@@ -214,7 +236,7 @@ export class DatabaseService implements OnModuleInit {
       );
 
       this.db.serialize(() => {
-        for (const s of seedStories) {
+        for (const s of seedStories.slice(0, 2)) {
           insertStmt.run(
             s.id,
             s.title,

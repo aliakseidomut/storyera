@@ -2,6 +2,12 @@
 // DATABASE SERVICE (Fetch from Real API)
 // ============================================
 export const DatabaseService = {
+  async ensureOk(response, endpoint) {
+    if (response.ok) return;
+    const body = await response.text().catch(() => '');
+    throw new Error(`API ${endpoint} failed: ${response.status} ${body || response.statusText}`);
+  },
+
   async parseJsonResponse(response, fallback = null) {
     const text = await response.text();
     if (!text) return fallback;
@@ -35,6 +41,7 @@ export const DatabaseService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ user_id: userId, email, story_id: storyId, progress })
     });
+    await this.ensureOk(response, '/api/save-progress');
     return this.parseJsonResponse(response, { success: response.ok });
   },
 
@@ -44,6 +51,7 @@ export const DatabaseService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ user_id: userId, email, story_id: storyId })
     });
+    await this.ensureOk(response, '/api/get-progress');
     return this.parseJsonResponse(response, null);
   },
 
@@ -53,6 +61,7 @@ export const DatabaseService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ user_id: userId, email, story_id: storyId })
     });
+    await this.ensureOk(response, '/api/clear-progress');
     return this.parseJsonResponse(response, { success: response.ok });
   },
 
@@ -62,6 +71,7 @@ export const DatabaseService = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId, email })
     });
+    await this.ensureOk(response, '/api/all-progress');
     return this.parseJsonResponse(response, []);
   },
 

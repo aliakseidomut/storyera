@@ -269,10 +269,28 @@ export class AuthService {
     });
   }
 
-  async resolveUserIdByEmail(email?: string): Promise<number | null> {
+  async resolveUserIdByEmail(email?: string, createIfMissing = false): Promise<number | null> {
     if (!email) return null;
-    const user = await this.findUserByEmail(email);
-    return user?.id ?? null;
+    const normalizedEmail = email.trim().toLowerCase();
+    const existing = await this.findUserByEmail(normalizedEmail);
+    if (existing?.id) return existing.id;
+    if (!createIfMissing) return null;
+
+    // Social login users may exist only on frontend state; create a minimal verified user record.
+    const db = this.dbService.getDatabase();
+    const placeholderHash = bcrypt.hashSync(`oauth:${normalizedEmail}`, 10);
+    const createdAt = new Date().toISOString();
+
+    await new Promise<void>((resolve, reject) => {
+      db.run(
+        'INSERT OR IGNORE INTO users (email, password_hash, is_verified, created_at) VALUES (?, ?, 1, ?)',
+        [normalizedEmail, placeholderHash, createdAt],
+        (err) => (err ? reject(err) : resolve()),
+      );
+    });
+
+    const created = await this.findUserByEmail(normalizedEmail);
+    return created?.id ?? null;
   }
 
   async findUserByEmail(email: string): Promise<UserRecord | null> {
