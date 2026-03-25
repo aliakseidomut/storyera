@@ -23,15 +23,6 @@ class AuthDto {
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  private async resolveUserId(body: { user_id?: number; email?: string }) {
-    if (body?.user_id) return body.user_id;
-    const resolved = await this.authService.resolveUserIdByEmail(body?.email, true);
-    if (!resolved) {
-      throw new UnauthorizedException('Missing or invalid user identity');
-    }
-    return resolved;
-  }
-
   @Post('register')
   async register(@Body() body: AuthDto) {
     const { email, password, confirmPassword, agreed } = body;
@@ -55,45 +46,18 @@ export class AuthController {
   }
 
   @Post('all-progress')
-  async getAllProgress(@Body() body: { user_id?: number; email?: string }) {
-    const userId = await this.resolveUserId(body);
-    return this.authService.getAllProgress(userId);
-  }
-
-  @Post('all-bookmarks')
-  async getAllBookmarks(@Body() body: { user_id?: number; email?: string }) {
-    const userId = await this.resolveUserId(body);
-    return this.authService.getAllBookmarks(userId);
+  async getAllProgress(@Body() body: { user_id: number }) {
+    return this.authService.getAllProgress(body.user_id);
   }
 
   @Post('save-progress')
   async saveProgress(@Body() body: any) {
-    const userId = await this.resolveUserId(body);
-    return this.authService.saveProgress(userId, body.story_id, body.progress);
+    return this.authService.saveProgress(body.user_id, body.story_id, body.progress);
   }
 
   @Post('get-progress')
-  async getProgress(@Body() body: { user_id?: number; email?: string; story_id: number }) {
-    const userId = await this.resolveUserId(body);
-    return this.authService.getProgress(userId, body.story_id);
-  }
-
-  @Post('clear-progress')
-  async clearProgress(@Body() body: { user_id?: number; email?: string; story_id: number }) {
-    const userId = await this.resolveUserId(body);
-    return this.authService.clearProgress(userId, body.story_id);
-  }
-
-  @Post('bookmark')
-  async addBookmark(@Body() body: { user_id?: number; email?: string; story_id: number }) {
-    const userId = await this.resolveUserId(body);
-    return this.authService.addBookmark(userId, body.story_id);
-  }
-
-  @Post('unbookmark')
-  async removeBookmark(@Body() body: { user_id?: number; email?: string; story_id: number }) {
-    const userId = await this.resolveUserId(body);
-    return this.authService.removeBookmark(userId, body.story_id);
+  async getProgress(@Body() body: { user_id: number; story_id: number }) {
+    return this.authService.getProgress(body.user_id, body.story_id);
   }
 
   @Post('forgot-password')
