@@ -2,7 +2,7 @@ export default function BottomNav({ currentView, onViewChange, language }) {
   const isRu = language === 'ru';
   const t = {
     library: isRu ? 'Библиотека' : 'Library',
-    continue: isRu ? 'Продолжить' : 'Continue',
+    continue: isRu ? 'Мои книги' : 'My Books',
     settings: isRu ? 'Настройки' : 'Settings',
   };
 
@@ -38,12 +38,12 @@ export default function BottomNav({ currentView, onViewChange, language }) {
   ];
 
   return (
-    <div className="bg-background border-t border-border flex justify-around py-3 px-4">
+    <div className="bg-background border-t border-border flex justify-center py-3 px-4 gap-[50px]">
       {items.map(item => (
         <button
           key={item.id}
           onClick={() => onViewChange(item.id)}
-          className={`flex flex-col items-center gap-1 text-[10px] font-medium transition-colors ${currentView === item.id ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+          className={`flex flex-col items-center gap-1 text-[10px] md:text-xs font-medium transition-colors ${currentView === item.id ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
         >
           {item.icon}
           {item.label}

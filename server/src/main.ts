@@ -2,13 +2,16 @@ import 'reflect-metadata';
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import cors from 'cors';
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { json, urlencoded } = require('express');
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { cors: false });
+  const app = await NestFactory.create(AppModule, { cors: true });
 
-  // Enable CORS
-  app.enableCors();
+  // Increase body size limit for large chat histories
+  app.use(json({ limit: '50mb' }));
+  app.use(urlencoded({ extended: true, limit: '50mb' }));
 
   const port = process.env.PORT || 5000;
   await app.listen(port);

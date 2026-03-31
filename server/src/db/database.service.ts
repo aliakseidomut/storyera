@@ -7,62 +7,18 @@ export class DatabaseService implements OnModuleInit {
   private db!: sqlite3.Database;
 
   onModuleInit() {
-    const dbPath = path.join(process.cwd(), 'storyera.db');
+    const dbPath = path.join('/root/.openclaw/workspace/db_data', 'storyera.db');
     this.db = new sqlite3.Database(dbPath);
 
     this.db.serialize(() => {
-      this.db.run(`
-        CREATE TABLE IF NOT EXISTS users (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          email TEXT UNIQUE NOT NULL,
-          password_hash TEXT NOT NULL,
-          is_premium INTEGER DEFAULT 0,
-          is_verified INTEGER DEFAULT 0,
-          created_at TEXT NOT NULL
-        )
-      `);
-
-      this.db.run(`
-        CREATE TABLE IF NOT EXISTS pending_users (
-          email TEXT PRIMARY KEY,
-          password_hash TEXT NOT NULL,
-          created_at TEXT NOT NULL
-        )
-      `);
-
-      this.db.run(`
-        CREATE TABLE IF NOT EXISTS user_story_progress (
-          user_id INTEGER NOT NULL,
-          story_id INTEGER NOT NULL,
-          chat_history TEXT,
-          story_state TEXT,
-          choices_count INTEGER DEFAULT 0,
-          last_scene_summary TEXT,
-          last_user_choice TEXT,
-          updated_at TEXT,
-          PRIMARY KEY(user_id, story_id)
-        )
-      `);
-
-      this.db.run(`
-        CREATE TABLE IF NOT EXISTS stories (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          title TEXT NOT NULL,
-          description TEXT NOT NULL,
-          category TEXT NOT NULL,
-          tags_json TEXT NOT NULL,
-          image TEXT NOT NULL,
-          rating REAL NOT NULL,
-          plays INTEGER NOT NULL,
-          mature INTEGER NOT NULL,
-          created_at TEXT NOT NULL,
-          protagonist_json TEXT NOT NULL,
-          characters_json TEXT NOT NULL,
-          plot_json TEXT NOT NULL
-        )
-      `);
-
-      this.seedStoriesIfEmpty();
+      this.db.run(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, is_premium INTEGER DEFAULT 0, is_verified INTEGER DEFAULT 0, created_at TEXT NOT NULL)`);
+      this.db.run(`CREATE TABLE IF NOT EXISTS pending_users (email TEXT PRIMARY KEY, password_hash TEXT NOT NULL, created_at TEXT NOT NULL)`);
+      this.db.run(`CREATE TABLE IF NOT EXISTS user_story_progress (user_id INTEGER NOT NULL, story_id INTEGER NOT NULL, chat_history TEXT, story_state TEXT, choices_count INTEGER DEFAULT 0, last_scene_summary TEXT, last_user_choice TEXT, updated_at TEXT, language TEXT, PRIMARY KEY(user_id, story_id))`);
+      this.db.run(`CREATE TABLE IF NOT EXISTS user_bookmarks (user_id INTEGER NOT NULL, story_id INTEGER NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY(user_id, story_id))`);
+      this.db.run(`DROP TABLE IF EXISTS stories`);
+      this.db.run(`CREATE TABLE stories (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, description TEXT NOT NULL, category TEXT NOT NULL, tags_json TEXT NOT NULL, image TEXT NOT NULL, rating REAL NOT NULL, plays INTEGER NOT NULL, mature INTEGER NOT NULL, created_at TEXT NOT NULL, protagonist_json TEXT NOT NULL, characters_json TEXT NOT NULL, plot_json TEXT NOT NULL)`);
+      
+      this.seedStories();
     });
   }
 
@@ -70,169 +26,54 @@ export class DatabaseService implements OnModuleInit {
     return this.db;
   }
 
-  private seedStoriesIfEmpty() {
+  private seedStories() {
     const seedStories = [
-      {
-        id: 1,
-        title: 'Midnight Encounter',
-        description: 'A mysterious message appears at 2:13 AM. Who is sending it?',
-        category: 'Mystery',
-        tags: ['thriller', 'urban', 'suspense'],
-        image: 'https://images.unsplash.com/photo-1515191107209-c28698631303?auto=format&fit=crop&w=800&q=80',
-        rating: 4.8,
-        plays: 15420,
-        mature: true,
-        createdAt: '2024-01-15',
-        protagonist: {
-          name: 'You',
-          gender: 'Female',
-          age: '18-25',
-          archetype: 'Everyday Hero',
-          traits: ['curious', 'cautious', 'empathetic'],
-          flirtLevel: 40,
-          boundariesLevel: 60,
-        },
+      { 
+        title: "Пламя Дракона", 
+        description: "Ты — последний драконорожденный. Когда ты просыпаешься в огненном гнезде, она уже ждёт тебя — древняя драконша, пережившая гибель своего рода. В её мире сила определяется связью, а притяжение невозможно игнорировать. Она видит в тебе не просто союзника, а ключ к возрождению гнезда. Но чем глубже ты погружаешься в её власть, тем сложнее понять — где заканчивается твоя воля и начинается её. И когда между вами вспыхивает нечто большее, чем просто магия, тебе предстоит сделать выбор, который изменит не только тебя… но и саму природу мира.", 
+        category: "Тёмное фэнтези / monster romance", 
+        tags: ["dark fantasy", "monster romance", "knotting", "breeding", "ritual BDSM", "primal heat", "size difference"], 
+        image: "/dragon_flame_cover.jpg", 
+        protagonist: { 
+            name: "Драконорожденный", 
+            gender: "Male", 
+            age: "27",
+            archetype: "Warrior",
+            description: "Смелый до безрассудства, с твёрдым внутренним кодексом. Древняя кровь делает его особенно восприимчивым к магическим связям."
+        }, 
         characters: [
-          { name: 'Alex', role: 'The mysterious texter' },
-          { name: 'Emma', role: 'Your best friend' },
-        ],
-        plot: {
-          opening: [
-            'You receive a message from a number you don\'t recognize.',
-            'Alex: You finally replied. I wasn\'t sure you would.',
-            'Alex: So… do you remember me?',
-          ],
-          scenarioBrief:
-            'Modern urban mystery with late-night texts, blurred memories, and unclear intentions.',
-        },
+            { name: "Лирия Веларис", role: "Древняя драконица, доминантная, саркастичная, ищет равного партнера" }, 
+            { name: "Селена Вайр", role: "Эльфийка, провокатор" }, 
+            { name: "Аэлир", role: "Древняя сущность, хранитель" }, 
+            { name: "Каэл Дорн", role: "Инквизитор, антагонист" },
+            { name: "Мирелла Вайр", role: "Эльфийский стратег, манипулятор" },
+            { name: "Рагн Тар’Вел", role: "Свободный драконорожденный, символ полной автономии" }
+        ], 
+        plot: { 
+            opening: ["Древние руины гудят.", "Ты в центре огненного гнезда, освобождённый от цепей. Перед тобой — Лирия."], 
+            starter_choices: ["«Кто ты?»", "«Это ты?»", "Коснуться её"], 
+            chapters: [
+                "Пробуждение в огне", "Зов крови", "Ритуал пробуждения", "Тень в гнезде", 
+                "Испытание границ", "Дорога к храму", "Пламя испытаний", "Разрыв контроля", 
+                "Ритуал гнезда", "Война внутри гнезда", "Испытание власти", "Возрождение или разрушение"
+            ], 
+            summary: "Мир Эйра — это тёмное фэнтези-пространство, где магия рождается из эмоций, желания и стремления к власти. Когда-то драконы сформировали саму основу реальности, и их природа до сих пор влияет на мир: притяжение между существами здесь имеет физическую силу, а близость способна создавать магические связи, меняющие как личности, так и окружающую среду. Драконья кровь усиливает эмоции и делает носителей особенно восприимчивыми к таким связям, которые могут строиться на доминировании, равновесии или подчинении. Центральное значение имеют гнёзда — живые территории, отражающие отношения между теми, кто в них находится, и усиливающие их внутренние состояния." 
+        } 
       },
-      {
-        id: 2,
-        title: 'Forks Twilight',
-        description:
-          "You move to a small rainy town where the air smells of pine, wet asphalt and someone else’s secrets. In the school corridors you feel one particular gaze: cold, attentive, as if measuring how close you can get before it becomes lethal. The more you are drawn to him, the more the town itself starts to feel like a set built around your obsession.",
-        category: 'Romance',
-        tags: ['twilight-inspired', 'school', 'supernatural', 'slow-burn'],
-        image: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=800&q=80',
-        rating: 4.7,
-        plays: 9800,
-        mature: true,
-        createdAt: '2024-02-10',
-        protagonist: {
-          name: 'Riley',
-          gender: 'Female',
-          age: '18-25',
-          archetype: 'Newcomer',
-          traits: ['introverted', 'observant', 'stubborn'],
-          flirtLevel: 30,
-          boundariesLevel: 55,
-        },
-        characters: [
-          {
-            name: 'Riley',
-            role: 'You, the new student who hates attention but can’t stop noticing one pair of eyes that never quite looks away.',
-          },
-          {
-            name: 'Evan',
-            role: 'A distant classmate who moves with inhuman precision, appears exactly where you don’t expect him, and reacts to your presence like you are both temptation and threat.',
-          },
-          {
-            name: 'Mia',
-            role: 'A local girl with too many “coincidental” warnings, who jokes about monsters in the forest but always checks your reaction a second too long.',
-          },
-        ],
-        plot: {
-          opening: [
-            'The parking lot smells like wet asphalt and pine trees. Mist hangs low over the rows of cars.',
-            'As you slam your car door, you feel it — that prickling sense that someone is watching you.',
-            'Across the lot, a guy in a dark jacket stands too still, his eyes on you for a second too long before he abruptly looks away.',
-          ],
-          scenarioBrief:
-            'TWILIGHT-INSPIRED: Small gloomy town with forests and fog, a distant observant love interest hiding something dangerous, strong forbidden attraction and mysterious identity.',
-        },
-      },
-      {
-        id: 3,
-        title: 'Blood Pact',
-        description:
-          "You make a living solving problems for people who can afford to stay invisible. One night you take a contract that drags you into the private politics of ancient vampire clans, where every favor costs blood or loyalty. Refusing is dangerous, but accepting means letting a predator decide how much of your life still belongs to you.",
-        category: 'Fantasy',
-        tags: ['vampires', 'urban-night', 'power-games', 'dark-romance'],
-        image: 'https://images.unsplash.com/photo-1496307042754-b4aa456c4a2d?auto=format&fit=crop&w=800&q=80',
-        rating: 4.6,
-        plays: 7420,
-        mature: true,
-        createdAt: '2024-03-05',
-        protagonist: {
-          name: 'Noah',
-          gender: 'Male',
-          age: '26-35',
-          archetype: 'Reluctant Negotiator',
-          traits: ['sarcastic', 'calculating', 'loyal'],
-          flirtLevel: 45,
-          boundariesLevel: 70,
-        },
-        characters: [
-          {
-            name: 'Noah',
-            role: 'You, a human fixer who survives on sharp deals and sharper instincts, used to owning the room until you walk into one where nobody breathes.',
-          },
-          {
-            name: 'Lucien',
-            role: 'An old vampire lord who treats people like investments, never hears the word “no”, and studies you like you’re an unexpectedly interesting asset.',
-          },
-          {
-            name: 'Rhea',
-            role: 'A vampire enforcer with a predator’s patience, assigned to “watch your back” in a way that feels uncomfortably like both protection and surveillance.',
-          },
-        ],
-        plot: {
-          opening: [
-            'Midnight wraps the city in neon and rain as you walk into the club that technically doesn’t exist.',
-            'Every conversation dies for a heartbeat when you step inside — then resumes, lower, sharper, as if the room swallowed your name.',
-            "At the back table, he waits: eyes too pale, too still, like he hasn’t breathed in a century. When you sit, he smiles like he already owns you.",
-          ],
-          scenarioBrief:
-            'VAMPIRE WORLD: Modern city ruled from the shadows by ancient clans, political games, blood pacts, and dangerous attraction between predator and human.',
-        },
-      }
+      { title: "Кровавый Контракт", description: "Случайный контракт сделал тебя собственностью древней вампирши.", category: "Romance", tags: ["dark romance", "vampire", "yandere"], image: "/vampire_contract_cover.jpg", protagonist: { name: "Служащий", gender: "Unknown", archetype: "Cynical" }, characters: [{ name: "Валерия", role: "Вампирша" }], plot: { opening: ["Ты очнулся в спальне.", "На запястье метка."], starter_choices: ["«Зачем?»", "Молча выдержать взгляд", "Сорвать метку"], chapters: ["Пробуждение", "Кормёжка", "Голос", "Погоня", "Ритуал", "Одержимость", "Конфликт", "Ритуал", "Выбор", "Война", "Перелом", "Вечность"], summary: "Вампирский контракт." } },
+      { title: "Неоновый Ошейник", description: "Киберпанк-мир, удовольствие — оружие.", category: "Sci-Fi", tags: ["cyberpunk", "bdsm", "yandere"], image: "/neon_collar_cover.jpg", protagonist: { name: "Хакер", gender: "Unknown", archetype: "Hacker" }, characters: [{ name: "Кира", role: "Агент" }], plot: { opening: ["Твой нейроинтерфейс мигает.", "Голос: «Присоединяйся к Эрос Инк…»"], starter_choices: ["«Отключаюсь!»", "«Кто ты?»", "Взлом"], chapters: ["Взлом", "Контакт", "Захват", "Сессия", "Погоня", "Зависимость", "Игра", "Тест", "Лояльность", "Импланты", "Ритуал", "Новый порядок"], summary: "Киберпанк-контроль." } },
+      { title: "Клуб «Красный Шёлк»", description: "Элитный BDSM-клуб.", category: "Romance", tags: ["BDSM", "erotic"], image: "/red_silk_club_cover.jpg", protagonist: { name: "Гость", gender: "Unknown", archetype: "Control seeker" }, characters: [{ name: "Виктория", role: "Хозяйка" }], plot: { opening: ["Двери закрываются.", "На балконе женщина в алом латексе."], starter_choices: ["Нежность", "Боль", "К Хозяйке"], chapters: ["Вход", "Встреча", "Комната", "Правила", "Погружение", "Ревность", "Испытание", "Демонстрация", "Кризис", "Послеcare", "Контракт", "Роль"], summary: "Клуб власти." } },
+      { title: "Императрица и Гладиатор", description: "Древний Рим, власть и страсть.", category: "Fantasy", tags: ["historical", "bdsm"], image: "/gladiator_cover.jpg", protagonist: { name: "Гладиатор", gender: "Male", archetype: "Warrior" }, characters: [{ name: "Ливия", role: "Императрица" }], plot: { opening: ["Толпа ревёт.", "Ливия: «Сегодня ты сражаешься за Рим… а ночью — принадлежишь мне»."], starter_choices: ["Жест победы", "Склонить голову", "Посвятить победу"], chapters: ["Арена", "Вызов", "Ночь", "Интриги", "Ритуал", "Ревность", "Битва", "Власть", "Лояльность", "Заговор", "Финал", "Императрица"], summary: "Римская драма." } },
+      { title: "Пустошь Валькирий", description: "Постапокалипсис, банда Валькирий.", category: "Thriller", tags: ["survival", "breeding"], image: "/wasteland_cover.jpg", protagonist: { name: "Выживший", gender: "Unknown", archetype: "Raider" }, characters: [{ name: "Рейвен", role: "Лидер" }], plot: { opening: ["Ты в клетке.", "Рейвен: «Будешь нашим… или умрёшь»."], starter_choices: ["Бежать", "Сделку", "Спровоцировать"], chapters: ["Захват", "День", "Послушание", "Набег", "Зов", "Доля", "Власть", "Побег", "Предательство", "Возвращение", "Осада", "Финал"], summary: "Выживание." } },
+      { title: "Зов Бездны", description: "Космический хоррор.", category: "Sci-Fi", tags: ["cosmic horror"], image: "/call_of_abyss_cover.jpg", protagonist: { name: "Капитан", gender: "Unknown", archetype: "Astronaut" }, characters: [{ name: "Н’Зара", role: "Сущность" }], plot: { opening: ["В иллюминаторе аномалия.", "Н’Зара: «Вечное удовольствие»."], starter_choices: ["Самоуничтожение", "Переговоры", "Прикоснуться"], chapters: ["Контакт", "Голоса", "Изменение", "Слияние", "Разум", "Сон", "Ритуал", "Тень", "Зов", "Сингулярность", "Выбор", "Вечность"], summary: "Космическое слияние." } },
+      { title: "Наследие Богов", description: "Богини среди людей.", category: "Fantasy", tags: ["mythology", "harem"], image: "/gods_legacy_cover.jpg", protagonist: { name: "Избранный", gender: "Unknown", archetype: "Student" }, characters: [{ name: "Афродита", role: "Богиня" }], plot: { opening: ["Метка горит.", "Афродита: «Мы пришли забрать своё»."], starter_choices: ["«Розыгрыш?»", "«Кто первая?»", "Убежать"], chapters: ["Пробуждение", "Метка", "Дар", "Ревность", "Ритуал", "Соперничество", "Испытание", "Сила", "Слияние", "Тень титанов", "Последний выбор", "Наследие"], summary: "Богини." } },
+      { title: "Академия Запретных Желаний", description: "Магическая академия, соблазнение как предмет.", category: "Fantasy", tags: ["dark academia", "harem"], image: "/forbidden_academy_cover.jpg", protagonist: { name: "Новичок", gender: "Unknown", archetype: "Student" }, characters: [{ name: "Элира", role: "Доминантка" }, { name: "Скарлетт", role: "Огненная" }, { name: "Лираэль", role: "Книжница" }], plot: { opening: ["Ночь в академии.", "Девушки: «Мы пришли на урок соблазнения.»"], starter_choices: ["Выгнать", "Выбрать одну", "Общий урок"], chapters: ["Прибытие", "Первая ночь", "Ритуал", "Уроки", "Ревность", "Групповая динамика", "Тайный проход", "Испытание", "Риск", "Предательство", "Турнир", "Финал"], summary: "Магическая академия." } }
     ];
 
-    this.db.get('SELECT COUNT(*) as cnt FROM stories', (err, row: any) => {
-      if (err) {
-        console.error('Failed to count stories:', err);
-        return;
-      }
-      if (row && row.cnt > 0) {
-        return;
-      }
-
-      const insertStmt = this.db.prepare(
-        `INSERT INTO stories 
-          (id, title, description, category, tags_json, image, rating, plays, mature, created_at, protagonist_json, characters_json, plot_json)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      );
-
-      this.db.serialize(() => {
-        for (const s of seedStories) {
-          insertStmt.run(
-            s.id,
-            s.title,
-            s.description,
-            s.category,
-            JSON.stringify(s.tags),
-            s.image,
-            s.rating,
-            s.plays,
-            s.mature ? 1 : 0,
-            s.createdAt,
-            JSON.stringify(s.protagonist),
-            JSON.stringify(s.characters),
-            JSON.stringify(s.plot),
-          );
-        }
-        insertStmt.finalize();
-      });
+    const stmt = this.db.prepare("INSERT INTO stories (title, description, category, tags_json, image, rating, plays, mature, created_at, protagonist_json, characters_json, plot_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    seedStories.forEach(s => {
+        stmt.run(s.title, s.description, s.category, JSON.stringify(s.tags), s.image, 5.0, 0, 1, new Date().toISOString(), JSON.stringify(s.protagonist), JSON.stringify(s.characters), JSON.stringify(s.plot));
     });
+    stmt.finalize();
   }
 }

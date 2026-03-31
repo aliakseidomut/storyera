@@ -94,126 +94,124 @@ export default function SettingsPage({ currentUser, language, onSave, onLogout }
   const avatarLetter = (email || currentUser?.email || '?').trim().charAt(0).toUpperCase() || '?';
 
   return (
-    <div className="p-6 animate-fade-in bg-background text-foreground min-h-screen">
-      <h2 className="text-2xl font-bold tracking-tight mb-8">{copy.title}</h2>
+    <div className="p-6 animate-fade-in bg-background text-foreground min-h-screen flex justify-center">
+      <div className="w-full max-w-[600px]">
+        <h2 className="text-2xl font-bold tracking-tight mb-8">{copy.title}</h2>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="flex items-center gap-4">
-          <button
-            type="button"
-            onClick={() => setShowAvatarPicker(true)}
-            className="w-20 h-20 rounded-full bg-muted border border-border/80 overflow-hidden shrink-0 flex items-center justify-center text-xl font-semibold text-foreground hover:border-primary transition"
-          >
-            {picture ? (
-              <img src={picture} alt="Avatar preview" className="w-full h-full object-cover" />
-            ) : (
-              <span>{avatarLetter}</span>
-            )}
-          </button>
-          <p className="text-xs text-muted-foreground">{copy.avatarHint}</p>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">{copy.name}</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full bg-input border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
-              placeholder={copy.namePlaceholder}
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">{copy.email}</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-input border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
-              placeholder="you@example.com"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">{copy.appLanguage}</label>
-            <select
-              value={selectedLanguage}
-              onChange={(e) => setSelectedLanguage(e.target.value)}
-              className="w-full bg-input border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => setShowAvatarPicker(true)}
+              className="w-20 h-20 rounded-full bg-muted border border-border/80 overflow-hidden shrink-0 flex items-center justify-center text-xl font-semibold text-foreground hover:border-primary transition"
             >
-              {LANGUAGES.map((lang) => (
-                <option key={lang.code} value={lang.code}>
-                  {lang.label}
-                </option>
-              ))}
-            </select>
+              {picture ? (
+                <img src={picture} alt="Avatar preview" className="w-full h-full object-cover" />
+              ) : (
+                <span>{avatarLetter}</span>
+              )}
+            </button>
+            <p className="text-xs text-muted-foreground">{copy.avatarHint}</p>
           </div>
-        </div>
 
-        <Button
-          type="submit"
-          className="w-full py-6 font-semibold rounded-2xl"
-        >
-          {copy.save}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onLogout}
-          className="w-full py-6 text-red-500 hover:text-red-600 hover:bg-red-950/20 rounded-2xl"
-        >
-          {copy.logout}
-        </Button>
-      </form>
-
-      {showAvatarPicker && (
-        <div className="fixed inset-0 z-[60] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-card text-card-foreground rounded-2xl border border-border p-6 shadow-2xl">
-            <div
-              className={`rounded-xl border-2 border-dashed p-8 text-center transition ${isDragging ? 'border-primary bg-primary/10' : 'border-border bg-background'}`}
-              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-              onDragLeave={() => setIsDragging(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setIsDragging(false);
-                const file = e.dataTransfer.files?.[0];
-                processImageFile(file);
-                setShowAvatarPicker(false);
-              }}
-            >
-              <p className="text-sm font-semibold text-foreground">{copy.avatarDropTitle}</p>
-              <p className="text-xs text-muted-foreground mt-1">{copy.avatarDropSubtitle}</p>
-              <Button
-                variant="outline"
-                className="mt-4"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                {copy.avatarUpload}
-              </Button>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">{copy.name}</label>
               <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  processImageFile(e.target.files?.[0]);
-                  setShowAvatarPicker(false);
-                }}
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full bg-input border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
+                placeholder={copy.namePlaceholder}
               />
             </div>
-            {avatarError && <p className="mt-3 text-xs text-destructive">{avatarError}</p>}
-            <Button
-              variant="ghost"
-              className="mt-4 w-full"
-              onClick={() => setShowAvatarPicker(false)}
-            >
-              {copy.avatarClose}
-            </Button>
+
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">{copy.appLanguage}</label>
+              <div className="relative">
+                <select
+                  value={selectedLanguage}
+                  onChange={(e) => setSelectedLanguage(e.target.value)}
+                  className="w-full bg-input border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 appearance-none"
+                >
+                  {LANGUAGES.map((lang) => (
+                    <option key={lang.code} value={lang.code}>
+                      {lang.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+
+          <Button
+            type="submit"
+            className="w-full py-6 font-semibold rounded-2xl"
+          >
+            {copy.save}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onLogout}
+            className="w-full py-6 text-red-500 hover:text-red-600 hover:bg-red-950/20 rounded-2xl"
+          >
+            {copy.logout}
+          </Button>
+        </form>
+
+        {showAvatarPicker && (
+          <div className="fixed inset-0 z-[60] bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="w-full max-w-md bg-card text-card-foreground rounded-2xl border border-border p-6 shadow-2xl">
+              <div
+                className={`rounded-xl border-2 border-dashed p-8 text-center transition ${isDragging ? 'border-primary bg-primary/10' : 'border-border bg-background'}`}
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                  const file = e.dataTransfer.files?.[0];
+                  processImageFile(file);
+                  setShowAvatarPicker(false);
+                }}
+              >
+                <p className="text-sm font-semibold text-foreground">{copy.avatarDropTitle}</p>
+                <p className="text-xs text-muted-foreground mt-1">{copy.avatarDropSubtitle}</p>
+                <Button
+                  variant="outline"
+                  className="mt-4"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {copy.avatarUpload}
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    processImageFile(e.target.files?.[0]);
+                    setShowAvatarPicker(false);
+                  }}
+                />
+              </div>
+              {avatarError && <p className="mt-3 text-xs text-destructive">{avatarError}</p>}
+              <Button
+                variant="ghost"
+                className="mt-4 w-full"
+                onClick={() => setShowAvatarPicker(false)}
+              >
+                {copy.avatarClose}
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

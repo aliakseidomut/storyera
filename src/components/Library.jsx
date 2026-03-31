@@ -1,45 +1,24 @@
-import { CATEGORIES } from '../constants/modes.js';
-
 export default function Library({ 
   stories, 
   loading, 
-  searchQuery, 
-  setSearchQuery, 
-  selectedCategory, 
-  setSelectedCategory, 
   onStoryClick,
   isPremium,
   onPayment,
-  language
+  language,
+  progress = {},
+  bookmarks = {},
+  onToggleBookmark,
 }) {
   const isRu = language === 'ru';
   
   const t = {
-    all: isRu ? 'Все' : 'All',
-    mystery: isRu ? 'Детектив' : 'Mystery',
-    fantasy: isRu ? 'Фэнтези' : 'Fantasy',
-    romance: isRu ? 'Романтика' : 'Romance',
-    thriller: isRu ? 'Триллер' : 'Thriller',
-    custom: isRu ? 'Свое' : 'Custom',
     buyPremium: isRu ? 'Купить Premium' : 'Buy Premium',
     goPremium: isRu ? 'Premium' : 'Go Premium',
-    unlock: isRu ? 'Открой безлимит' : 'Unlock unlimited stories'
-  };
-
-  const getCategoryName = (cat) => {
-    switch(cat) {
-        case 'All': return t.all;
-        case 'Mystery': return t.mystery;
-        case 'Fantasy': return t.fantasy;
-        case 'Romance': return t.romance;
-        case 'Thriller': return t.thriller;
-        case 'Custom': return t.custom;
-        default: return cat;
-    }
+    unlock: isRu ? 'Открой безлимит' : 'Unlock unlimited stories',
   };
   
   return (
-    <div className="h-full flex flex-col animate-fade-in bg-background text-foreground">
+    <div className="min-h-full flex flex-col animate-fade-in bg-background text-foreground">
       {!isPremium && (
         <div className="px-6 pt-6">
           <div className="bg-primary text-primary-foreground p-5 rounded-2xl shadow-lg">
@@ -54,51 +33,52 @@ export default function Library({
           </div>
         </div>
       )}
-      
-      <div className="px-6 py-4 bg-background/90 border-b border-border sticky top-0 z-10 backdrop-blur-sm">
-        <input
-          type="text"
-          placeholder={isRu ? "Поиск..." : "Search stories..."}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full bg-input border border-border rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary outline-none"
-        />
-      </div>
-
-      <div className="flex px-6 pt-4 gap-2 overflow-x-auto pb-4">
-        {CATEGORIES.map((category) => (
-          <button
-            key={category}
-            onClick={() => setSelectedCategory(category)}
-            className={`px-4 py-2 rounded-full text-xs font-medium transition ${
-              selectedCategory === category 
-                ? 'bg-primary text-primary-foreground' 
-                : 'bg-card border border-border text-foreground hover:bg-muted'
-            }`}
-          >
-            {getCategoryName(category)}
-          </button>
-        ))}
-      </div>
 
       <div className="p-6 space-y-6 pb-20">
         {loading ? (
           <div className="flex justify-center py-20 text-primary">Loading...</div>
         ) : (
-          <div className="grid gap-4">
-            {stories.map(story => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {stories.filter(Boolean).map(story => (
               <div 
                 key={story.id} 
-                className="overflow-hidden cursor-pointer hover:border-primary transition-all bg-card border border-border rounded-2xl"
+                className="group relative h-96 rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 border border-border hover:scale-[1.03] hover:shadow-[0_0_12px_2px_rgba(239,68,68,0.15)]"
                 onClick={() => onStoryClick(story)}
               >
-                <div className="h-32 relative overflow-hidden">
-                  <img src={story.image} className="w-full h-full object-cover rounded-t-2xl" alt={story.title} />
-                  <div className="absolute inset-0 bg-black/40" />
-                </div>
-                <div className="p-4">
-                  <h4 className="font-bold text-sm text-foreground">{story.title}</h4>
-                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{story.description}</p>
+                {/* Full image */}
+                <img src={story.image} className="absolute inset-0 w-full h-full object-cover" alt={story.title} />
+                
+                {/* Gradient overlay for text */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+
+                {/* Bookmark Button */}
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleBookmark?.(story);
+                    }}
+                    aria-label={isRu ? 'Закладка' : 'Bookmark'}
+                    className={`absolute top-3 right-3 w-10 h-10 rounded-full border backdrop-blur-md flex items-center justify-center transition ${
+                        bookmarks[story.id]
+                        ? 'bg-primary/90 text-primary-foreground border-primary/80'
+                        : 'bg-black/30 text-white border-white/20 hover:bg-black/50'
+                    }`}
+                >
+                    <svg className="w-5 h-5" fill={bookmarks[story.id] ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-4-7 4V5z" />
+                    </svg>
+                </button>
+
+                {/* Language Tag */}
+                {progress[story.id]?.language && (
+                    <div className="absolute top-3 left-3 px-2 py-1 bg-black/40 text-[10px] text-white rounded-md backdrop-blur-sm">
+                        {progress[story.id].language.toUpperCase()}
+                    </div>
+                )}
+
+                {/* Content at bottom */}
+                <div className="absolute bottom-3 left-0 right-0 p-5 text-white text-center">
+                    <h4 className="font-bold text-lg leading-tight">{story.title}</h4>
                 </div>
               </div>
             ))}

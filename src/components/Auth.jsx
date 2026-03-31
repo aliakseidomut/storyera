@@ -205,170 +205,171 @@ export default function Auth({ onAuthSuccess, language = 'en' }) {
   }
 
   return (
-    <div className="p-6 h-full flex flex-col animate-fade-in bg-background text-foreground overflow-y-auto">
-      <div className="text-center mb-7">
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">{t.welcome}</h2>
-        <p className="text-xs text-muted-foreground mt-1">
-          {mode === 'login' ? t.signInToContinue : mode === 'register' ? t.createAccountToStart : t.verifyEmailText}
-        </p>
-      </div>
+    <div className="p-6 h-full flex flex-col items-center justify-center animate-fade-in bg-background text-foreground overflow-y-auto">
+      <div className="w-full max-w-[600px] py-10">
+        <div className="text-center mb-7">
+          <h2 className="text-2xl font-bold tracking-tight text-foreground">{t.welcome}</h2>
+          <p className="text-xs text-muted-foreground mt-1">
+            {mode === 'login' ? t.signInToContinue : mode === 'register' ? t.createAccountToStart : t.verifyEmailText}
+          </p>
+        </div>
 
-      {mode !== 'verify' && (
-      <div className="flex mb-6 bg-muted/80 rounded-full p-1 border border-border/80">
-        <button
-          className={`flex-1 py-2 text-xs font-semibold rounded-full transition-all ${
-            mode === 'login' ? 'bg-card text-foreground shadow-md shadow-[hsl(var(--background)/0.35)]' : 'text-muted-foreground'
-          }`}
-          onClick={() => { setMode('login'); setError(''); }}
-        >
-          {t.login}
-        </button>
-        <button
-          className={`flex-1 py-2 text-xs font-semibold rounded-full transition-all ${
-            mode === 'register' ? 'bg-card text-foreground shadow-md shadow-[hsl(var(--background)/0.35)]' : 'text-muted-foreground'
-          }`}
-          onClick={() => { setMode('register'); setError(''); }}
-        >
-          {t.register}
-        </button>
-      </div>
-      )}
+        {mode !== 'verify' && (
+        <div className="flex mb-6 bg-muted/80 rounded-full p-1 border border-border/80">
+          <button
+            className={`flex-1 py-2 text-xs font-semibold rounded-full transition-all ${
+              mode === 'login' ? 'bg-card text-foreground shadow-md shadow-[hsl(var(--background)/0.35)]' : 'text-muted-foreground'
+            }`}
+            onClick={() => { setMode('login'); setError(''); }}
+          >
+            {t.login}
+          </button>
+          <button
+            className={`flex-1 py-2 text-xs font-semibold rounded-full transition-all ${
+              mode === 'register' ? 'bg-card text-foreground shadow-md shadow-[hsl(var(--background)/0.35)]' : 'text-muted-foreground'
+            }`}
+            onClick={() => { setMode('register'); setError(''); }}
+          >
+            {t.register}
+          </button>
+        </div>
+        )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {mode === 'verify' ? (
-          <div>
-            <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">{t.verificationCode}</label>
-            <input
-              type="text"
-              required
-              value={verificationCode}
-              onChange={(e) => setVerificationCode(e.target.value)}
-              className="w-full bg-card border border-border/80 rounded-xl px-4 py-3 text-sm text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
-              placeholder="000000"
-            />
-             <button
-              type="button"
-              onClick={handleVerify}
-              className="w-full mt-4 py-3.5 bg-primary text-primary-foreground rounded-xl font-semibold transition active:scale-[0.99] hover:opacity-90 shadow-lg shadow-[hsl(var(--primary)/0.35)] hover:shadow-xl hover:shadow-[hsl(var(--primary)/0.45)]"
-            >
-              {t.verifyEmail}
-            </button>
-            <button
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {mode === 'verify' ? (
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">{t.verificationCode}</label>
+              <input
+                type="text"
+                required
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value)}
+                className="w-full bg-card border border-border/80 rounded-xl px-4 py-3 text-sm text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
+                placeholder="000000"
+              />
+              <button
                 type="button"
-                onClick={handleResend}
-                disabled={countdown > 0 || loading}
-                className="w-full mt-2 py-3 bg-stone-900 text-stone-300 rounded-xl text-sm font-medium hover:bg-stone-800 transition-colors disabled:opacity-50"
-            >
-                {countdown > 0 ? `${isRu ? 'Отправить снова через' : 'Resend in'} ${countdown}s` : (isRu ? 'Отправить код еще раз' : 'Resend code')}
-            </button>
-          </div>
-        ) : (
-        <>
-        <div>
-          <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">Email</label>
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full bg-card border border-border/80 rounded-xl px-4 py-3 text-sm text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
-            placeholder="you@example.com"
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">{t.password}</label>
-          <input
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full bg-card border border-border/80 rounded-xl px-4 py-3 text-sm text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
-            placeholder="••••••••"
-          />
-        </div>
-        {mode === 'register' && (
+                onClick={handleVerify}
+                className="w-full mt-4 py-3.5 bg-primary text-primary-foreground rounded-xl font-semibold transition active:scale-[0.99] hover:opacity-90 shadow-lg shadow-[hsl(var(--primary)/0.35)] hover:shadow-xl hover:shadow-[hsl(var(--primary)/0.45)]"
+              >
+                {t.verifyEmail}
+              </button>
+              <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={countdown > 0 || loading}
+                  className="w-full mt-2 py-3 bg-stone-900 text-stone-300 rounded-xl text-sm font-medium hover:bg-stone-800 transition-colors disabled:opacity-50"
+              >
+                  {countdown > 0 ? `${isRu ? 'Отправить снова через' : 'Resend in'} ${countdown}s` : (isRu ? 'Отправить код еще раз' : 'Resend code')}
+              </button>
+            </div>
+          ) : (
+          <>
           <div>
-            <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">{t.confirmPassword}</label>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">Email</label>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full bg-card border border-border/80 rounded-xl px-4 py-3 text-sm text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
+              placeholder="you@example.com"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">{t.password}</label>
             <input
               type="password"
               required
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               className="w-full bg-card border border-border/80 rounded-xl px-4 py-3 text-sm text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
               placeholder="••••••••"
             />
           </div>
-        )}
+          {mode === 'register' && (
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">{t.confirmPassword}</label>
+              <input
+                type="password"
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full bg-card border border-border/80 rounded-xl px-4 py-3 text-sm text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
+                placeholder="••••••••"
+              />
+            </div>
+          )}
 
-        {mode === 'register' && (
-          <label className="flex items-start gap-2 text-xs text-muted-foreground">
-            <input 
-                type="checkbox" 
-                checked={agreed} 
-                onChange={(e) => setAgreed(e.target.checked)} 
-                className="mt-0.5"
-            />
-            <span>
-              {t.agreeText}{' '}
-              <button type="button" onClick={() => setOpenDoc('terms')} className="underline text-foreground">
-                {t.tos}
-              </button>{' '}
-              {t.and}{' '}
-              <button type="button" onClick={() => setOpenDoc('privacy')} className="underline text-foreground">
-                {t.privacy}
-              </button>
-            </span>
-          </label>
-        )}
-        </>
-        )}
-
-        {error && <div className="text-xs text-primary bg-primary/10 p-3 rounded-xl border border-primary/20">{error}</div>}
-
-        {mode !== 'verify' && (
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full py-3.5 bg-primary text-primary-foreground rounded-xl font-semibold transition active:scale-[0.99] hover:opacity-90 shadow-lg shadow-[hsl(var(--primary)/0.35)] hover:shadow-xl hover:shadow-[hsl(var(--primary)/0.45)]"
-        >
-          {loading ? t.pleaseWait : mode === 'login' ? t.login : t.createAccount}
-        </button>
-        )}
-
-        {mode === 'login' && (
-            <>
-                <div className="flex justify-center my-2">
-                    <span className="text-xs text-muted-foreground uppercase">{t.or}</span>
-                </div>
-                <button
-                type="button"
-                onClick={() => login()}
-                className="w-full py-3.5 bg-card border border-border/80 hover:bg-muted text-card-foreground rounded-xl font-semibold transition active:scale-[0.99] flex items-center justify-center gap-2"
-                >
-                <svg className="w-5 h-5" viewBox="0 0 24 24">
-                    <path
-                    fill="#4285F4"
-                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                    />
-                    <path
-                    fill="#34A853"
-                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                    />
-                    <path
-                    fill="#FBBC05"
-                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                    />
-                    <path
-                    fill="#EA4335"
-                    d="M12 7.08c1.57 0 2.98.54 4.09 1.6l3.07-3.07C17.45 3.61 14.96 2 12 2c-4.3 0-8.01 2.47-9.82 6.09l2.85 2.84C5.84 8.78 8.28 7.08 11.2 7.08z"
-                    />
-                </svg>
-                {t.google}
+          {mode === 'register' && (
+            <label className="flex items-start gap-2 text-xs text-muted-foreground">
+              <input 
+                  type="checkbox" 
+                  checked={agreed} 
+                  onChange={(e) => setAgreed(e.target.checked)} 
+                  className="mt-0.5"
+              />
+              <span>
+                {t.agreeText}{' '}
+                <button type="button" onClick={() => setOpenDoc('terms')} className="underline text-foreground">
+                  {t.tos}
+                </button>{' '}
+                {t.and}{' '}
+                <button type="button" onClick={() => setOpenDoc('privacy')} className="underline text-foreground">
+                  {t.privacy}
                 </button>
-            </>
-        )}
-      </form>
+              </span>
+            </label>
+          )}
+          </>
+          )}
 
+          {error && <div className="text-xs text-primary bg-primary/10 p-3 rounded-xl border border-primary/20">{error}</div>}
+
+          {mode !== 'verify' && (
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3.5 bg-primary text-primary-foreground rounded-xl font-semibold transition active:scale-[0.99] hover:opacity-90 shadow-lg shadow-[hsl(var(--primary)/0.35)] hover:shadow-xl hover:shadow-[hsl(var(--primary)/0.45)]"
+          >
+            {loading ? t.pleaseWait : mode === 'login' ? t.login : t.createAccount}
+          </button>
+          )}
+
+          {mode === 'login' && (
+              <>
+                  <div className="flex justify-center my-2">
+                      <span className="text-xs text-muted-foreground uppercase">{t.or}</span>
+                  </div>
+                  <button
+                  type="button"
+                  onClick={() => login()}
+                  className="w-full py-3.5 bg-card border border-border/80 hover:bg-muted text-card-foreground rounded-xl font-semibold transition active:scale-[0.99] flex items-center justify-center gap-2"
+                  >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24">
+                      <path
+                      fill="#4285F4"
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                      />
+                      <path
+                      fill="#34A853"
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                      />
+                      <path
+                      fill="#FBBC05"
+                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                      />
+                      <path
+                      fill="#EA4335"
+                      d="M12 7.08c1.57 0 2.98.54 4.09 1.6l3.07-3.07C17.45 3.61 14.96 2 12 2c-4.3 0-8.01 2.47-9.82 6.09l2.85 2.84C5.84 8.78 8.28 7.08 11.2 7.08z"
+                      />
+                  </svg>
+                  {t.google}
+                  </button>
+              </>
+          )}
+        </form>
+      </div>
     </div>
   );
 }

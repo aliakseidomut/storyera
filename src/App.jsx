@@ -12,12 +12,9 @@ import Auth from './components/Auth.jsx';
 import SettingsPage from './components/SettingsPage.jsx';
 import BottomNav from './components/BottomNav.jsx';
 import ContinueReading from './components/ContinueReading.jsx';
+import Sidebar from './components/Sidebar.jsx';
 
-// ============================================
-// MAIN APP COMPONENT
-// ============================================
 export default function App() {
-  // State Management
   const [currentView, setCurrentView] = useState('library');
   const [currentStory, setCurrentStory] = useState(null);
   const [chatMessages, setChatMessages] = useState([]);
@@ -27,9 +24,8 @@ export default function App() {
   const [stories, setStories] = useState([]);
   const [translatedStories, setTranslatedStories] = useState([]);
   const [progress, setProgress] = useState({});
+  const [bookmarks, setBookmarks] = useState({});
   const [loading, setLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [currentUser, setCurrentUser] = useState(() => {
     try {
@@ -52,8 +48,8 @@ export default function App() {
   });
 
   useEffect(() => {
-    if (currentUser) {
-        DatabaseService.getAllProgress(currentUser.id).then(allProgress => {
+    if (currentUser?.id) {
+        DatabaseService.getAllProgress(currentUser.id, currentUser.email).then(allProgress => {
             if (Array.isArray(allProgress)) {
                 const progMap = {};
                 allProgress.forEach(p => {
@@ -62,9 +58,19 @@ export default function App() {
                 setProgress(progMap);
             }
         }).catch(e => console.error('Failed to load all progress', e));
+
+        DatabaseService.getAllBookmarks(currentUser.id, currentUser.email).then(allBookmarks => {
+            if (Array.isArray(allBookmarks)) {
+                const bookmarkMap = {};
+                allBookmarks.forEach(b => {
+                    bookmarkMap[b.story_id] = b;
+                });
+                setBookmarks(bookmarkMap);
+            }
+        }).catch(e => console.error('Failed to load bookmarks', e));
     }
   }, [currentUser]);
-
+  
   const handlePayment = async () => {
     try {
       const res = await fetch('/api/create-checkout-session', {
@@ -111,27 +117,13 @@ export default function App() {
 
   useEffect(() => {
     const run = async () => {
-      if (!stories.length) {
-        setTranslatedStories([]);
-        return;
-      }
-      if (language === 'ru') {
-        try {
-          const translated = await aiService.translateStories(stories, 'ru');
-          setTranslatedStories(translated);
-        } catch {
-          setTranslatedStories(stories);
-        }
-      } else {
-        setTranslatedStories(stories);
-      }
+      setTranslatedStories(stories);
     };
     run();
-  }, [stories, language]);
+  }, [stories]);
 
   const handleChoiceSelect = (choice) => {
     handleSendMessage(choice);
-    setChoicesCount(prev => prev + 1);
   };
 
   const [characterData, setCharacterData] = useState({
@@ -144,7 +136,6 @@ export default function App() {
     boundariesLevel: 50
   });
 
-  // Story state for tracking hidden parameters
   const [storyState, setStoryState] = useState({
     trust: 50,
     attraction: 50,
@@ -160,17 +151,26 @@ export default function App() {
   const [currentChoices, setCurrentChoices] = useState([]);
   const [lastSceneSummary, setLastSceneSummary] = useState('');
   const [lastUserChoice, setLastUserChoice] = useState('');
+  const initialStoryState = {
+    trust: 50,
+    attraction: 50,
+    tension: 30,
+    mystery: 70,
+    control: 50,
+    risk: 30,
+    boundaries: 50,
+    pressure: 30,
+    emotional_stability: 50,
+  };
 
-  // Load data on mount
   useEffect(() => {
     loadStories();
     if (currentUser) {
       checkPremiumStatus();
     }
-  }, [currentUser]);
+  }, []);
 
   const checkPremiumStatus = async () => {
-    console.log('Checking premium for:', currentUser?.email);
     try {
       const res = await fetch('/api/me', {
         method: 'POST',
@@ -178,23 +178,28 @@ export default function App() {
         body: JSON.stringify({ email: currentUser?.email })
       });
       const data = await res.json();
-      console.log('Premium status check response:', data);
       setIsPremium(!!data.isPremium);
+      if (data.id && currentUser && !currentUser.id) {
+          const updatedUser = { ...currentUser, id: data.id };
+          setCurrentUser(updatedUser);
+          localStorage.setItem('storyera_user', JSON.stringify(updatedUser));
+      }
     } catch (err) {
       console.error('Failed to check premium:', err);
     }
   };
 
-  // Load stories from database
   const loadStories = async () => {
     setLoading(true);
     try {
-      const filters = {};
-      if (searchQuery) filters.search = searchQuery;
-      if (selectedCategory !== 'All') filters.category = selectedCategory;
-      
-      const data = await DatabaseService.getStories(filters);
-      setStories(data);
+      const data = await DatabaseService.getStories({});
+      const parsedData = data.map(s => ({
+        ...s,
+        characters: typeof s.characters_json === 'string' ? JSON.parse(s.characters_json) : (s.characters_json || []),
+        plot: typeof s.plot_json === 'string' ? JSON.parse(s.plot_json) : (s.plot_json || {}),
+        protagonist: typeof s.protagonist_json === 'string' ? JSON.parse(s.protagonist_json) : (s.protagonist_json || {})
+      }));
+      setStories(parsedData);
     } catch (error) {
       console.error('Failed to load stories:', error);
       setStories([]);
@@ -202,16 +207,23 @@ export default function App() {
     setLoading(false);
   };
 
-  useEffect(() => {
-    loadStories();
-  }, [searchQuery, selectedCategory]);
-
-  // Navigation Functions
   const goToLibrary = () => setCurrentView('library');
-
   const goToStoryDetail = async (story) => {
     setCurrentStory(story);
     setCurrentView('story-detail');
+  };
+
+  const restartStory = async (story) => {
+    const selectedStory = story || currentStory;
+    if (!selectedStory || (!currentUser?.id && !currentUser?.email)) {
+      startChat(selectedStory, { forceRestart: true });
+      return;
+    }
+    try {
+      await DatabaseService.clearProgress(currentUser.id, selectedStory.id, currentUser.email);
+      setProgress(prev => { const next = { ...prev }; delete next[selectedStory.id]; return next; });
+    } catch (e) { console.error('Failed to clear progress', e); }
+    startChat(selectedStory, { forceRestart: true });
   };
 
   const handleAuthSuccess = (user) => {
@@ -220,280 +232,189 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    try {
-      localStorage.removeItem('storyera_user');
-    } catch {
-      // ignore storage errors
-    }
+    localStorage.removeItem('storyera_user');
     setCurrentUser(null);
     setCurrentView('landing');
     setCurrentStory(null);
     setChatMessages([]);
     setCurrentChoices([]);
+    setProgress({});
+    setBookmarks({});
+  };
+
+  const toggleBookmark = async (story) => {
+    const targetStory = story || currentStory;
+    if (!targetStory || (!currentUser?.id && !currentUser?.email)) return;
+    try {
+      const isSaved = !!bookmarks[targetStory.id];
+      if (isSaved) {
+        await DatabaseService.removeBookmark(currentUser.id, targetStory.id, currentUser.email);
+        setBookmarks(prev => { const next = { ...prev }; delete next[targetStory.id]; return next; });
+      } else {
+        await DatabaseService.addBookmark(currentUser.id, targetStory.id, currentUser.email);
+        setBookmarks(prev => ({ ...prev, [targetStory.id]: { story_id: targetStory.id } }));
+      }
+    } catch (e) { console.error('Failed to toggle bookmark', e); }
   };
 
   const handleSaveSettings = (updatedUser, selectedLanguage) => {
     setCurrentUser(updatedUser);
     setLanguage(selectedLanguage);
-    try {
-      localStorage.setItem('storyera_user', JSON.stringify(updatedUser));
-    } catch {
-      // ignore storage errors
-    }
-    setShowSettingsModal(false);
+    localStorage.setItem('storyera_user', JSON.stringify(updatedUser));
+    setCurrentView('library');
   };
 
-  const startChat = async (story) => {
-    const selectedStory = story || currentStory;
-    if (!selectedStory) return;
-    setCurrentStory(selectedStory);
-    
-    // Check for saved progress
+  const persistProgress = async ({ storyId, messages, state, choices, sceneSummary, userChoice, storyLanguage }) => {
+    if ((!currentUser?.id && !currentUser?.email) || !storyId) return;
     try {
-        const savedProgress = await DatabaseService.getProgress(currentUser.id, selectedStory.id);
+      await DatabaseService.saveProgress(currentUser.id, storyId, { chat_history: messages, story_state: state, choices_count: choices, last_scene_summary: sceneSummary, last_user_choice: userChoice, language: storyLanguage }, currentUser.email);
+      setProgress(prev => ({ ...prev, [storyId]: { story_id: storyId, last_scene_summary: sceneSummary, choices_count: choices, updated_at: new Date().toISOString(), language: storyLanguage } }));
+    } catch (e) { console.error('Failed to persist progress', e); }
+  };
+
+  const startChat = async (story, options = {}) => {
+    setLoading(true);
+    const { forceRestart = false } = options;
+    const selectedStory = story || currentStory;
+    if (!selectedStory) { setLoading(false); return; }
+    
+    let storyLanguage = language;
+    if (!forceRestart && (currentUser?.id || currentUser?.email)) {
+      try {
+        const savedProgress = await DatabaseService.getProgress(currentUser.id, selectedStory.id, currentUser.email);
         if (savedProgress) {
-            setChatMessages(JSON.parse(savedProgress.chat_history));
-            setStoryState(JSON.parse(savedProgress.story_state));
+            if (savedProgress.language) storyLanguage = savedProgress.language;
+            const parsedHistory = savedProgress.chat_history ? JSON.parse(savedProgress.chat_history) : [];
+            const parsedState = savedProgress.story_state ? JSON.parse(savedProgress.story_state) : {};
+            setChatMessages(Array.isArray(parsedHistory) ? parsedHistory : []);
+            setStoryState(parsedState && Object.keys(parsedState).length ? parsedState : initialStoryState);
             setChoicesCount(savedProgress.choices_count);
             setLastSceneSummary(savedProgress.last_scene_summary);
             setLastUserChoice(savedProgress.last_user_choice);
+            setCurrentChoices(storyLanguage === 'ru' ? ['Продолжить уверенно', 'Спросить прямо', 'Сменить тактику'] : ['Continue boldly', 'Ask directly', 'Change strategy']);
             setCurrentView('chat');
+            setLoading(false);
             return;
         }
-    } catch (e) {
-        console.error('Failed to load progress', e);
+      } catch (e) { console.error('Failed to load progress', e); }
     }
     
-    // Reset if no progress found
     setChatMessages([]);
     setCurrentChoices([]);
     setLastSceneSummary('');
     setLastUserChoice('');
+    setChoicesCount(0);
+    setMessageCounter(0);
+    setStoryState(initialStoryState);
     
-    // Reset story state to initial values
-    setStoryState({
-      trust: 50,
-      attraction: 50,
-      tension: 30,
-      mystery: 70,
-      control: 50,
-      risk: 30,
-      boundaries: 50,
-      pressure: 30,
-      emotional_stability: 50
-    });
-    
-    // Используем готовый сюжет
-    const s = selectedStory;
-
-    // Set character data from predefined protagonist for this story
-    if (s?.protagonist) {
-      let protagonist = s.protagonist;
-      if (language === 'ru') {
-        protagonist = await aiService.translateCharacter(protagonist, 'ru');
-      }
-      setCharacterData(protagonist);
+    if (selectedStory?.protagonist) {
+      setCharacterData(selectedStory.protagonist);
     }
-    const defaultOpeningMessages = language === 'ru'
-      ? [
-          'Вы получаете сообщение с незнакомого номера.',
-          'Алекс: Ты наконец ответил(а). Я не был(а) уверен(а), что ты ответишь.',
-          'Алекс: Ну что… ты меня помнишь?'
-        ]
-      : [
-          "You receive a message from a number you don't recognize.",
-          "Alex: You finally replied. I wasn't sure you would.",
-          "Alex: So… do you remember me?"
-        ];
-
-    let openingMessages = s?.plot?.opening || defaultOpeningMessages;
-    if (language === 'ru' && openingMessages.length) {
-      openingMessages = await aiService.translateLines(openingMessages, 'ru');
-    }
-
-    // Show starter choices right after opening lines so user can continue without typing.
-    const starterChoices = language === 'ru'
-      ? ['Ответить уверенно', 'Спросить, кто это', 'Проигнорировать сообщение']
-      : ['Reply confidently', 'Ask who this is', 'Ignore the message'];
     
-    openingMessages.forEach((message, index) => {
-      setTimeout(() => {
-        addAIMessage(message);
-        if (index === openingMessages.length - 1) {
-          setCurrentChoices(starterChoices);
-        }
-      }, 500 + (index * 1000));
-    });
+    const openingMessages = selectedStory?.plot?.opening || ["Welcome to the story."];
+    const starterChoices = selectedStory?.plot?.starter_choices || ["Start"];
+
+    const seededMessages = openingMessages.map((line) => ({ role: 'ai', content: line }));
+    const seededSummary = openingMessages[openingMessages.length - 1] || '';
     
+    setChatMessages(seededMessages);
+    setCurrentChoices(starterChoices);
+    setLastSceneSummary(seededSummary);
+    setLastUserChoice('');
+    
+    await persistProgress({ storyId: selectedStory.id, messages: seededMessages, state: initialStoryState, choices: 0, sceneSummary: seededSummary, userChoice: '', storyLanguage });
+
+    setLoading(false);
     setCurrentView('chat');
-  };
-
-  // Chat Functions
-  const addAIMessage = (text) => {
-    setChatMessages(prev => [...prev, { role: 'ai', content: text }]);
   };
 
   const handleSendMessage = async (message) => {
     setChatMessages(prev => [...prev, { role: 'user', content: message }]);
     setLastUserChoice(message);
-    setCurrentChoices([]); // Clear previous choices
+    setCurrentChoices([]); 
     setIsTyping(true);
-    setChoicesCount(prev => prev + 1);
+    const newChoicesCount = choicesCount + 1;
+    setChoicesCount(newChoicesCount);
     const newMessageCount = messageCounter + 1;
     setMessageCounter(newMessageCount);
 
-    // Build conversation history for context
-    const conversationHistory = chatMessages.map(m => ({
-      role: m.role === 'user' ? 'user' : 'assistant',
-      content: m.content
-    }));
+    if (newMessageCount % 10 === 0) {
+        const imageB64 = await aiService.generateImage(`Scene: ${lastSceneSummary}`);
+        if (imageB64) {
+            setChatMessages(prev => [...prev, { role: 'ai', content: `data:image/png;base64,${imageB64}` }]);
+        }
+    }
 
-    // Build story context
-    const storyContext = `Story: ${currentStory?.title || 'Custom Story'}\nDescription: ${currentStory?.description || ''}`;
+    const conversationHistory = chatMessages.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content }));
+    const response = await aiService.getAIResponse(message, { storyData: currentStory, characterData, storyState, lastSceneSummary, lastUserChoice: message, conversationHistory, language });
     
-    // Determine scenario brief based on story
-    const scenarioBrief = currentStory?.description || storyContext;
-    
-    const response = await aiService.getAIResponse(message, {
-      storyContext,
-      characterData,
-      scenarioBrief,
-      storyState,
-      lastSceneSummary,
-      lastUserChoice: message,
-      conversationHistory,
-      flirtLevel: characterData.flirtLevel || 50,
-      boundariesLevel: characterData.boundariesLevel || 50,
-      language
-    });
-    
-    // Extract scene and choices from response
     const sceneText = response.scene || response;
     const choices = response.choices || [];
     
-    // Update last scene summary
-    setLastSceneSummary(sceneText.substring(0, 200)); // Store first 200 chars as summary
-    
+    setLastSceneSummary(sceneText.substring(0, 200)); 
     setIsTyping(false);
-    
-    // Save to database
     const finalMessages = [...chatMessages, { role: 'user', content: message }, { role: 'ai', content: sceneText }];
     
-    await DatabaseService.saveChatHistory(
-      currentStory?.id, 
-      finalMessages
-    );
-
-    // Save progress
-    if (currentUser) {
-        await DatabaseService.saveProgress(currentUser.id, currentStory.id, {
-            chat_history: finalMessages,
-            story_state: storyState,
-            choices_count: choicesCount,
-            last_scene_summary: lastSceneSummary,
-            last_user_choice: message
-        });
-    }
+    await DatabaseService.saveChatHistory(currentStory?.id, finalMessages);
+    await persistProgress({ storyId: currentStory?.id, messages: finalMessages, state: storyState, choices: newChoicesCount, sceneSummary: sceneText.substring(0, 200), userChoice: message, storyLanguage: progress[currentStory?.id]?.language || language });
     
-    setTimeout(() => {
-      addAIMessage(sceneText);
-      setCurrentChoices(choices);
-    }, 300);
+    setChatMessages(prev => [...prev, { role: 'ai', content: sceneText }]);
+    setCurrentChoices(choices);
   };
 
-  // Story Generation
+  const handleExitChat = async () => {
+    await persistProgress({ storyId: currentStory?.id, messages: chatMessages, state: storyState, choices: choicesCount, sceneSummary: lastSceneSummary, userChoice: lastUserChoice || '', storyLanguage: progress[currentStory?.id]?.language || language });
+    setCurrentView('library');
+  };
+
   const generateStory = async () => {
     let storyTitle = 'Custom Story';
-    
-    if (storyPrompt) {
-      storyTitle = await aiService.generateStoryTitle(storyPrompt, language);
-    }
-
-    // Create story in database
-    const newStory = await DatabaseService.createStory({
-      title: storyTitle,
-      description: storyPrompt || 'A custom generated story',
-      category: 'Custom',
-      tags: ['ai-generated', 'custom'],
-      image: 'https://image.qwenlm.ai/public_source/b5a993e0-9295-487e-a8f3-21f4eba3a246/14c43e383-4b43-4292-9d05-2deec160dcea.png',
-      characters: [{ name: characterData.name, role: 'Protagonist' }],
-      mature: naughtinessLevel > 50
-    });
-
+    if (storyPrompt) storyTitle = await aiService.generateStoryTitle(storyPrompt, language);
+    const newStory = await DatabaseService.createStory({ title: storyTitle, description: storyPrompt, category: 'Custom', image: 'https://images.unsplash.com/photo-1542224566-6e85f2d6771f?q=80&w=1000', characters: [], mature: naughtinessLevel > 50 });
     setCurrentStory(newStory);
     setShowCreateModal(false);
     setCurrentView('story-detail');
-    startChat();
+    startChat(newStory);
   };
 
   return (
-    <div className="min-h-screen w-full bg-muted text-foreground flex items-center justify-center p-0">
-      <div className="w-full h-full max-w-md bg-card text-card-foreground relative overflow-hidden flex flex-col shadow-2xl shadow-[hsl(var(--background)/0.45)]">
-        {currentUser && <Header
-          currentUser={currentUser}
-          isPremium={isPremium}
-          onLogoClick={goToLibrary}
-        />}
+    <div className="fixed inset-0 w-full h-[100dvh] bg-muted text-foreground flex overflow-hidden">
+      {currentUser && <Sidebar currentView={currentView} onViewChange={setCurrentView} language={language} />}
+      
+      <div className="flex-1 h-[100dvh] bg-card text-card-foreground relative flex flex-col shadow-2xl shadow-[hsl(var(--background)/0.45)]">
+        {currentUser && (
+          <div className="md:hidden flex-none z-20">
+            <Header currentUser={currentUser} isPremium={isPremium} onLogoClick={goToLibrary} />
+          </div>
+        )}
 
-        <main className="flex-1 overflow-y-auto relative bg-background/70 backdrop-blur-[2px]">
-          {!currentUser && (
-            <Auth onAuthSuccess={handleAuthSuccess} language={language} />
-          )}
-          {currentUser && currentView === 'library' && (
-            <Library 
-              stories={translatedStories}
-              loading={loading}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              selectedCategory={selectedCategory}
-              setSelectedCategory={setSelectedCategory}
-              onStoryClick={goToStoryDetail}
-              isPremium={isPremium}
-              onPayment={handlePayment}
-              language={language}
-            />
-          )}
-          {currentUser && currentView === 'continue' && (
-            <ContinueReading
-              stories={translatedStories}
-              progress={progress}
-              onStoryClick={goToStoryDetail}
-            />
-          )}
-          {currentUser && currentView === 'story-detail' && (
-            <StoryDetail 
-              story={currentStory}
-              onBack={goToLibrary}
-              onStartStory={startChat}
-              language={language}
-            />
-          )}
-          {currentUser && currentView === 'chat' && (
-            <Chat 
-              story={currentStory}
-              chatMessages={chatMessages}
-              isTyping={isTyping}
-              choices={currentChoices}
-              choicesCount={choicesCount}
-              isPremium={isPremium}
-              onPayment={handlePayment}
-              onBack={() => setCurrentView('library')}
-              onSendMessage={handleSendMessage}
-              onChoiceSelect={handleChoiceSelect}
-              language={language}
-            />
-          )}
-          {currentUser && currentView === 'settings' && (
-            <SettingsPage
-              currentUser={currentUser}
-              language={language}
-              onSave={handleSaveSettings}
-              onLogout={handleLogout}
-            />
-          )}
+        <main className="flex-1 overflow-y-auto relative bg-background w-full">
+          <div className="w-full min-h-full">
+            {!currentUser && <Auth onAuthSuccess={handleAuthSuccess} language={language} />}
+            {currentUser && currentView === 'library' && (
+              <Library stories={translatedStories} loading={loading} onStoryClick={goToStoryDetail} isPremium={isPremium} onPayment={handlePayment} language={language} progress={progress} bookmarks={bookmarks} onToggleBookmark={toggleBookmark} />
+            )}
+            {/* ... other views ... */}
+            {currentUser && currentView === 'continue' && (
+              <ContinueReading stories={translatedStories} progress={progress} bookmarks={bookmarks} onStoryClick={goToStoryDetail} language={language} />
+            )}
+            {currentUser && currentView === 'story-detail' && (
+              <StoryDetail story={currentStory} onBack={goToLibrary} onStartStory={startChat} onRestartStory={() => restartStory(currentStory)} onToggleBookmark={() => toggleBookmark(currentStory)} isBookmarked={!!bookmarks[currentStory?.id]} hasProgress={!!progress[currentStory?.id]} language={language} />
+            )}
+            {currentUser && currentView === 'chat' && (
+              <Chat story={currentStory} chatMessages={chatMessages} isTyping={isTyping} choices={currentChoices} choicesCount={choicesCount} isPremium={isPremium} onPayment={handlePayment} onBack={handleExitChat} onSendMessage={handleSendMessage} onChoiceSelect={handleChoiceSelect} language={language} />
+            )}
+            {currentUser && currentView === 'settings' && (
+              <SettingsPage currentUser={currentUser} language={language} onSave={handleSaveSettings} onLogout={handleLogout} />
+            )}
+          </div>
         </main>
 
-        {currentUser && <BottomNav currentView={currentView} onViewChange={setCurrentView} language={language} />}
+        {currentUser && (
+          <div className="md:hidden flex-none z-20">
+            <BottomNav currentView={currentView} onViewChange={setCurrentView} language={language} />
+          </div>
+        )}
 
         {showCreateModal && (
           <CreateModal 

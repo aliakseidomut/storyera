@@ -203,16 +203,20 @@ export class AuthService {
   }
 
   async saveProgress(user_id: number, story_id: number, progress: any) {
+    if (!user_id || !story_id || !progress) {
+      throw new UnauthorizedException('Invalid progress payload');
+    }
+
     const db = this.dbService.getDatabase();
     const { chat_history, story_state, choices_count, last_scene_summary, last_user_choice } = progress;
     const updatedAt = new Date().toISOString();
 
-    return new Promise<void>((resolve, reject) => {
+    return new Promise<{ success: boolean }>((resolve, reject) => {
       db.run(`INSERT OR REPLACE INTO user_story_progress 
         (user_id, story_id, chat_history, story_state, choices_count, last_scene_summary, last_user_choice, updated_at) 
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [user_id, story_id, JSON.stringify(chat_history), JSON.stringify(story_state), choices_count, last_scene_summary, last_user_choice, updatedAt],
-        (err) => err ? reject(err) : resolve()
+        (err) => err ? reject(err) : resolve({ success: true })
       );
     });
   }
@@ -225,6 +229,10 @@ export class AuthService {
   }
 
   async getAllProgress(user_id: number) {
+    if (!user_id) {
+      throw new UnauthorizedException('Missing user id');
+    }
+
     const db = this.dbService.getDatabase();
     return new Promise((resolve, reject) => {
       db.all('SELECT * FROM user_story_progress WHERE user_id = ?', [user_id], (err, rows) => err ? reject(err) : resolve(rows));
@@ -232,11 +240,106 @@ export class AuthService {
   }
 
   async getProgress(user_id: number, story_id: number) {
+    if (!user_id || !story_id) {
+      throw new UnauthorizedException('Missing user id or story id');
+    }
+
     const db = this.dbService.getDatabase();
     return new Promise((resolve, reject) => {
       db.get('SELECT * FROM user_story_progress WHERE user_id = ? AND story_id = ?', 
-        [user_id, story_id], (err, row) => err ? reject(err) : resolve(row));
+        [user_id, story_id], (err, row) => err ? reject(err) : resolve(row || null));
     });
+  }
+
+  async clearProgress(user_id: number, story_id: number) {
+    if (!user_id || !story_id) {
+      throw new UnauthorizedException('Missing user id or story id');
+    }
+
+    const db = this.dbService.getDatabase();
+    return new Promise((resolve, reject) => {
+      db.run(
+        'DELETE FROM user_story_progress WHERE user_id = ? AND story_id = ?',
+        [user_id, story_id],
+        function (err) {
+          if (err) return reject(err);
+          resolve({ success: true, deleted: this.changes > 0 });
+        },
+      );
+    });
+  }
+
+  async addBookmark(user_id: number, story_id: number) {
+    if (!user_id || !story_id) {
+      throw new UnauthorizedException('Missing user id or story id');
+    }
+
+    const db = this.dbService.getDatabase();
+    const createdAt = new Date().toISOString();
+    return new Promise<{ success: boolean }>((resolve, reject) => {
+      db.run(
+        'INSERT OR REPLACE INTO user_bookmarks (user_id, story_id, created_at) VALUES (?, ?, ?)',
+        [user_id, story_id, createdAt],
+        (err) => (err ? reject(err) : resolve({ success: true })),
+      );
+    });
+  }
+
+  async removeBookmark(user_id: number, story_id: number) {
+    if (!user_id || !story_id) {
+      throw new UnauthorizedException('Missing user id or story id');
+    }
+
+    const db = this.dbService.getDatabase();
+    return new Promise((resolve, reject) => {
+      db.run(
+        'DELETE FROM user_bookmarks WHERE user_id = ? AND story_id = ?',
+        [user_id, story_id],
+        function (err) {
+          if (err) return reject(err);
+          resolve({ success: true, deleted: this.changes > 0 });
+        },
+      );
+    });
+  }
+
+  async getAllBookmarks(user_id: number) {
+    if (!user_id) {
+      throw new UnauthorizedException('Missing user id');
+    }
+
+    const db = this.dbService.getDatabase();
+    return new Promise((resolve, reject) => {
+      db.all(
+        'SELECT * FROM user_bookmarks WHERE user_id = ? ORDER BY created_at DESC',
+        [user_id],
+        (err, rows) => (err ? reject(err) : resolve(rows)),
+      );
+    });
+  }
+
+  async resolveUserIdByEmail(email?: string, createIfMissing = false): Promise<number | null> {
+    if (!email) return null;
+    const normalizedEmail = email.trim().toLowerCase();
+    const existing = await this.findUserByEmail(normalizedEmail);
+    if (existing?.id) return existing.id;
+    if (!createIfMissing) return null;
+
+    // Social login users may exist only on frontend state; create a minimal verified user record.
+    const db = this.dbService.getDatabase();
+    const placeholderHash = bcrypt.hashSync(`oauth:${normalizedEmail}`, 10);
+    const createdAt = new Date().toISOString();
+
+    await new Promise<void>((resolve, reject) => {
+      db.run(
+        'INSERT OR IGNORE INTO users (email, password_hash, is_verified, created_at) VALUES (?, ?, 1, ?)',
+        [normalizedEmail, placeholderHash, createdAt],
+        (err) => (err ? reject(err) : resolve()),
+      );
+    });
+
+    const created = await this.findUserByEmail(normalizedEmail);
+    return created?.id ?? null;
   }
 
   async findUserByEmail(email: string): Promise<UserRecord | null> {

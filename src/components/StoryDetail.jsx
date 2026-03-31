@@ -1,14 +1,26 @@
-export default function StoryDetail({ story, onBack, onStartStory, language = 'en' }) {
+export default function StoryDetail({
+  story,
+  onBack,
+  onStartStory,
+  onRestartStory,
+  onToggleBookmark,
+  isBookmarked = false,
+  hasProgress = false,
+  language = 'en'
+}) {
   const isRu = language === 'ru';
   const t = {
     characters: isRu ? 'Персонажи' : 'Characters',
     startStory: isRu ? 'Начать историю' : 'Start Story',
+    continueStory: isRu ? 'Продолжить' : 'Continue',
+    restartStory: isRu ? 'Перечитать заново' : 'Read Again',
+    bookmarkAction: isRu ? 'Закладка' : 'Bookmark',
   };
 
   return (
     <div className="h-full flex flex-col animate-fade-in bg-background text-foreground">
       <div className="relative h-64">
-        <img src={story?.image} className="w-full h-full object-cover" alt={story?.title} />
+        <img src={story?.image} className="w-full h-full object-cover object-top" alt={story?.title} />
         <div className="absolute inset-0 bg-gradient-to-t from-[hsl(var(--background)/0.9)] via-[hsl(var(--background)/0.35)] to-transparent pointer-events-none" />
         <button
           onClick={onBack}
@@ -16,6 +28,19 @@ export default function StoryDetail({ story, onBack, onStartStory, language = 'e
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <button
+          onClick={onToggleBookmark}
+          aria-label={t.bookmarkAction}
+          className={`absolute top-4 right-4 w-9 h-9 backdrop-blur-md rounded-full flex items-center justify-center z-10 transition border ${
+            isBookmarked
+              ? 'bg-primary/90 text-primary-foreground border-primary/80'
+              : 'bg-card/80 text-card-foreground border-border/80 hover:bg-muted'
+          }`}
+        >
+          <svg className="w-4 h-4" fill={isBookmarked ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-4-7 4V5z" />
           </svg>
         </button>
       </div>
@@ -50,12 +75,22 @@ export default function StoryDetail({ story, onBack, onStartStory, language = 'e
           </div>
         </div>
 
-        <button
-          onClick={onStartStory}
-          className="w-full py-4 bg-primary text-primary-foreground rounded-xl font-semibold mt-4 hover:opacity-90 transition shadow-lg shadow-[hsl(var(--primary)/0.38)] hover:shadow-xl hover:shadow-[hsl(var(--primary)/0.5)]"
-        >
-          {t.startStory}
-        </button>
+        <div className="grid grid-cols-1 gap-2 mt-4">
+          <button
+            onClick={() => onStartStory(story)}
+            className="w-full py-4 bg-primary text-primary-foreground rounded-xl font-semibold hover:opacity-90 transition shadow-lg shadow-[hsl(var(--primary)/0.38)] hover:shadow-xl hover:shadow-[hsl(var(--primary)/0.5)]"
+          >
+            {hasProgress ? t.continueStory : t.startStory}
+          </button>
+          {hasProgress && (
+            <button
+              onClick={() => onRestartStory(story)}
+              className="w-full py-3.5 border border-border rounded-xl font-medium text-foreground hover:bg-muted transition"
+            >
+              {t.restartStory}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

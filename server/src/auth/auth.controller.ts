@@ -23,6 +23,15 @@ class AuthDto {
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  private async resolveUserId(body: { user_id?: number; email?: string }) {
+    if (body?.user_id) return body.user_id;
+    const resolved = await this.authService.resolveUserIdByEmail(body?.email, true);
+    if (!resolved) {
+      throw new UnauthorizedException('Missing or invalid user identity');
+    }
+    return resolved;
+  }
+
   @Post('register')
   async register(@Body() body: AuthDto) {
     const { email, password, confirmPassword, agreed } = body;
@@ -46,18 +55,49 @@ export class AuthController {
   }
 
   @Post('all-progress')
-  async getAllProgress(@Body() body: { user_id: number }) {
-    return this.authService.getAllProgress(body.user_id);
+  async getAllProgress(@Body() body: { user_id?: number; email?: string }) {
+    const userId = await this.resolveUserId(body);
+    return this.authService.getAllProgress(userId);
+  }
+
+  @Post('all-bookmarks')
+  async getAllBookmarks(@Body() body: { user_id?: number; email?: string }) {
+    const userId = await this.resolveUserId(body);
+    return this.authService.getAllBookmarks(userId);
   }
 
   @Post('save-progress')
   async saveProgress(@Body() body: any) {
-    return this.authService.saveProgress(body.user_id, body.story_id, body.progress);
+    console.log('Save progress body:', body);
+    const userId = await this.resolveUserId(body);
+    return this.authService.saveProgress(userId, body.story_id, body.progress);
   }
 
   @Post('get-progress')
-  async getProgress(@Body() body: { user_id: number; story_id: number }) {
-    return this.authService.getProgress(body.user_id, body.story_id);
+  async getProgress(@Body() body: { user_id?: number; email?: string; story_id: number }) {
+    console.log('Get progress body:', body);
+    const userId = await this.resolveUserId(body);
+    console.log('Resolved user ID:', userId);
+    if (!userId) throw new UnauthorizedException('Could not resolve user identity');
+    return this.authService.getProgress(userId, body.story_id);
+  }
+
+  @Post('clear-progress')
+  async clearProgress(@Body() body: { user_id?: number; email?: string; story_id: number }) {
+    const userId = await this.resolveUserId(body);
+    return this.authService.clearProgress(userId, body.story_id);
+  }
+
+  @Post('bookmark')
+  async addBookmark(@Body() body: { user_id?: number; email?: string; story_id: number }) {
+    const userId = await this.resolveUserId(body);
+    return this.authService.addBookmark(userId, body.story_id);
+  }
+
+  @Post('unbookmark')
+  async removeBookmark(@Body() body: { user_id?: number; email?: string; story_id: number }) {
+    const userId = await this.resolveUserId(body);
+    return this.authService.removeBookmark(userId, body.story_id);
   }
 
   @Post('forgot-password')
@@ -83,7 +123,12 @@ export class AuthController {
   @Post('me')
   async me(@Body() body: { email: string }) {
     const user = await this.authService.findUserByEmail(body.email);
-    return { isPremium: user?.is_premium || false };
+    if (!user) return { isPremium: false };
+    return { 
+        id: user.id,
+        email: user.email,
+        isPremium: user.is_premium || false 
+    };
   }
 
   @Post('create-checkout-session')
