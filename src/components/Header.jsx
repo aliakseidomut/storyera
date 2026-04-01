@@ -1,6 +1,6 @@
 import { Settings } from 'lucide-react';
 
-export default function Header({ currentUser, isPremium, onLogoClick }) {
+export default function Header({ currentUser, onLogoClick }) {
   const identityLabel = currentUser?.name?.trim() || currentUser?.email || '';
 
   return (
@@ -15,7 +15,6 @@ export default function Header({ currentUser, isPremium, onLogoClick }) {
       <div className="flex items-center">
         {currentUser && (
           <>
-            {isPremium && <span className="text-[10px] bg-primary text-primary-foreground px-2 py-0.5 rounded-full font-semibold shadow-md shadow-[hsl(var(--primary)/0.35)]">PRO</span>}
             <div className="flex items-center gap-1.5 ml-2">
               {currentUser.picture && <img src={currentUser.picture} className="w-8 h-8 rounded-full border border-border" alt="Avatar" />}
               <span className="text-xs text-muted-foreground max-w-[110px] truncate">

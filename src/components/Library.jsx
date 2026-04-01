@@ -2,41 +2,21 @@ export default function Library({
   stories, 
   loading, 
   onStoryClick,
-  isPremium,
-  onPayment,
   language,
   progress = {},
   bookmarks = {},
   onToggleBookmark,
 }) {
   const isRu = language === 'ru';
-  
   const t = {
-    buyPremium: isRu ? 'Купить Premium' : 'Buy Premium',
-    goPremium: isRu ? 'Premium' : 'Go Premium',
-    unlock: isRu ? 'Открой безлимит' : 'Unlock unlimited stories',
+    loading: isRu ? 'Загрузка...' : 'Loading...',
   };
   
   return (
     <div className="min-h-full flex flex-col animate-fade-in bg-background text-foreground">
-      {!isPremium && (
-        <div className="px-6 pt-6">
-          <div className="bg-primary text-primary-foreground p-5 rounded-2xl shadow-lg">
-            <h3 className="font-bold text-lg">{t.goPremium}</h3>
-            <p className="text-xs opacity-90 mb-4">{t.unlock}</p>
-            <button 
-              className="w-full py-2 bg-background text-foreground rounded-2xl text-sm font-bold shadow-md transition-colors"
-              onClick={onPayment}
-            >
-              {t.buyPremium}
-            </button>
-          </div>
-        </div>
-      )}
-
       <div className="p-6 space-y-6 pb-20">
         {loading ? (
-          <div className="flex justify-center py-20 text-primary">Loading...</div>
+          <div className="flex justify-center py-20 text-primary">{t.loading}</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {stories.filter(Boolean).map(story => (
@@ -68,13 +48,6 @@ export default function Library({
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-4-7 4V5z" />
                     </svg>
                 </button>
-
-                {/* Language Tag */}
-                {progress[story.id]?.language && (
-                    <div className="absolute top-3 left-3 px-2 py-1 bg-black/40 text-[10px] text-white rounded-md backdrop-blur-sm">
-                        {progress[story.id].language.toUpperCase()}
-                    </div>
-                )}
 
                 {/* Content at bottom */}
                 <div className="absolute bottom-3 left-0 right-0 p-5 text-white text-center">

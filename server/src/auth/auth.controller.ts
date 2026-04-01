@@ -1,16 +1,5 @@
 import { Body, Controller, Post, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import Stripe from 'stripe';
-
-const stripeKey = process.env.STRIPE_KEY;
-if (!stripeKey) {
-  // Do not start Stripe if key is missing; endpoints depending on it will throw clearly
-  // eslint-disable-next-line no-console
-  console.error('Missing STRIPE_KEY in environment. Stripe checkout endpoints will fail until it is set.');
-}
-const stripe = stripeKey
-  ? new Stripe(stripeKey, { apiVersion: '2024-06-20' as any })
-  : (null as unknown as Stripe);
 
 class AuthDto {
   email!: string;
@@ -35,12 +24,8 @@ export class AuthController {
   @Post('register')
   async register(@Body() body: AuthDto) {
     const { email, password, confirmPassword, agreed } = body;
-    if (password !== confirmPassword) {
-      throw new Error('Passwords do not match');
-    }
-    if (!agreed) {
-      throw new Error('You must agree to the Terms of Service');
-    }
+    if (password !== confirmPassword) throw new Error('Passwords do not match');
+    if (!agreed) throw new Error('You must agree to the Terms of Service');
     return this.authService.register(email, password);
   }
 
@@ -54,38 +39,39 @@ export class AuthController {
     return this.authService.getStories();
   }
 
+  /* ──── Progress (language-aware) ──── */
+
   @Post('all-progress')
   async getAllProgress(@Body() body: { user_id?: number; email?: string }) {
     const userId = await this.resolveUserId(body);
     return this.authService.getAllProgress(userId);
   }
 
-  @Post('all-bookmarks')
-  async getAllBookmarks(@Body() body: { user_id?: number; email?: string }) {
-    const userId = await this.resolveUserId(body);
-    return this.authService.getAllBookmarks(userId);
-  }
-
   @Post('save-progress')
   async saveProgress(@Body() body: any) {
-    console.log('Save progress body:', body);
     const userId = await this.resolveUserId(body);
     return this.authService.saveProgress(userId, body.story_id, body.progress);
   }
 
   @Post('get-progress')
-  async getProgress(@Body() body: { user_id?: number; email?: string; story_id: number }) {
-    console.log('Get progress body:', body);
+  async getProgress(@Body() body: { user_id?: number; email?: string; story_id: number; language?: string }) {
     const userId = await this.resolveUserId(body);
-    console.log('Resolved user ID:', userId);
     if (!userId) throw new UnauthorizedException('Could not resolve user identity');
-    return this.authService.getProgress(userId, body.story_id);
+    return this.authService.getProgress(userId, body.story_id, body.language);
   }
 
   @Post('clear-progress')
-  async clearProgress(@Body() body: { user_id?: number; email?: string; story_id: number }) {
+  async clearProgress(@Body() body: { user_id?: number; email?: string; story_id: number; language?: string }) {
     const userId = await this.resolveUserId(body);
-    return this.authService.clearProgress(userId, body.story_id);
+    return this.authService.clearProgress(userId, body.story_id, body.language);
+  }
+
+  /* ──── Bookmarks ──── */
+
+  @Post('all-bookmarks')
+  async getAllBookmarks(@Body() body: { user_id?: number; email?: string }) {
+    const userId = await this.resolveUserId(body);
+    return this.authService.getAllBookmarks(userId);
   }
 
   @Post('bookmark')
@@ -99,6 +85,28 @@ export class AuthController {
     const userId = await this.resolveUserId(body);
     return this.authService.removeBookmark(userId, body.story_id);
   }
+
+  /* ──── Completed stories ──── */
+
+  @Post('save-completed')
+  async saveCompleted(@Body() body: { user_id?: number; email?: string; story_id: number; language?: string; title: string; chat_history: string }) {
+    const userId = await this.resolveUserId(body);
+    return this.authService.saveCompleted(userId, body.story_id, body.language || 'ru', body.title, body.chat_history);
+  }
+
+  @Post('all-completed')
+  async getAllCompleted(@Body() body: { user_id?: number; email?: string }) {
+    const userId = await this.resolveUserId(body);
+    return this.authService.getCompletedStories(userId);
+  }
+
+  @Post('get-completed')
+  async getCompleted(@Body() body: { user_id?: number; email?: string; completed_id: number }) {
+    const userId = await this.resolveUserId(body);
+    return this.authService.getCompletedStoryById(userId, body.completed_id);
+  }
+
+  /* ──── Auth ──── */
 
   @Post('forgot-password')
   async forgotPassword(@Body() body: { email: string }) {
@@ -123,49 +131,10 @@ export class AuthController {
   @Post('me')
   async me(@Body() body: { email: string }) {
     const user = await this.authService.findUserByEmail(body.email);
-    if (!user) return { isPremium: false };
-    return { 
-        id: user.id,
-        email: user.email,
-        isPremium: user.is_premium || false 
+    if (!user) return null;
+    return {
+      id: user.id,
+      email: user.email,
     };
-  }
-
-  @Post('create-checkout-session')
-  async createCheckoutSession(@Body() body: { email: string }) {
-    if (!stripeKey || !stripe) {
-      throw new Error('Stripe is not configured. Please set STRIPE_KEY in .env');
-    }
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [{
-        price_data: {
-          currency: 'usd',
-          product_data: { 
-            name: 'Premium Storyera',
-            description: 'Premium subscription for Storyera store'
-          },
-          unit_amount: 990,
-        },
-        quantity: 1,
-      }],
-      mode: 'payment',
-      success_url: 'https://storiera.run.place/success?session_id={CHECKOUT_SESSION_ID}&email=' + encodeURIComponent(body.email),
-      cancel_url: 'https://storiera.run.place/cancel',
-    });
-    return { url: session.url };
-  }
-
-  @Post('verify-payment')
-  async verifyPayment(@Body() body: { session_id: string; email: string }) {
-    if (!stripeKey || !stripe) {
-      throw new Error('Stripe is not configured. Please set STRIPE_KEY in .env');
-    }
-    const session = await stripe.checkout.sessions.retrieve(body.session_id);
-    if (session.payment_status === 'paid') {
-      await this.authService.updatePremium(body.email);
-      return { success: true };
-    }
-    throw new Error('Payment not completed');
   }
 }
