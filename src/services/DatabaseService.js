@@ -20,21 +20,20 @@ export const DatabaseService = {
 
   // Get all stories
   async getStories(filters = {}) {
-    console.log('[DEBUG] Fetching stories...');
     const response = await fetch('/api/stories', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(filters)
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(filters)
     });
-    const data = await this.parseJsonResponse(response, []);
-    console.log('[DEBUG] Stories fetched:', data);
-    return data;
+    return await this.parseJsonResponse(response, []);
   },
 
-  // Save chat history
+  // Save chat history (legacy, unused)
   async saveChatHistory(storyId, messages) {
     return { success: true };
   },
+
+  /* ──── Progress (language-aware) ──── */
 
   async saveProgress(userId, storyId, progress, email) {
     const body = { user_id: userId || null, email, story_id: storyId, progress };
@@ -46,8 +45,8 @@ export const DatabaseService = {
     return await this.parseJsonResponse(response, { success: response.ok });
   },
 
-  async getProgress(userId, storyId, email) {
-    const body = { user_id: userId || null, email, story_id: storyId };
+  async getProgress(userId, storyId, email, language) {
+    const body = { user_id: userId || null, email, story_id: storyId, language };
     const response = await fetch('/api/get-progress', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -57,23 +56,25 @@ export const DatabaseService = {
     return this.parseJsonResponse(response, null);
   },
 
-  async clearProgress(userId, storyId, email) {
+  async clearProgress(userId, storyId, email, language) {
     const response = await fetch('/api/clear-progress', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: userId, email, story_id: storyId })
+      body: JSON.stringify({ user_id: userId, email, story_id: storyId, language })
     });
     return await this.parseJsonResponse(response, { success: response.ok });
   },
 
   async getAllProgress(userId, email) {
     const response = await fetch('/api/all-progress', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId, email })
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, email })
     });
     return await this.parseJsonResponse(response, []);
   },
+
+  /* ──── Bookmarks ──── */
 
   async getAllBookmarks(userId, email) {
     const response = await fetch('/api/all-bookmarks', {
@@ -100,6 +101,35 @@ export const DatabaseService = {
       body: JSON.stringify({ user_id: userId, email, story_id: storyId })
     });
     return await this.parseJsonResponse(response, { success: response.ok });
+  },
+
+  /* ──── Completed stories ──── */
+
+  async saveCompleted(userId, storyId, language, title, chatHistory, email) {
+    const response = await fetch('/api/save-completed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId || null, email, story_id: storyId, language, title, chat_history: chatHistory })
+    });
+    return await this.parseJsonResponse(response, { success: response.ok });
+  },
+
+  async getAllCompleted(userId, email) {
+    const response = await fetch('/api/all-completed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, email })
+    });
+    return await this.parseJsonResponse(response, []);
+  },
+
+  async getCompletedById(userId, completedId, email) {
+    const response = await fetch('/api/get-completed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId || null, email, completed_id: completedId })
+    });
+    return await this.parseJsonResponse(response, null);
   },
 
   async createStory(storyData) {
