@@ -11,10 +11,22 @@ export default function StoryDetail({
   const isRu = language === 'ru';
   const t = {
     characters: isRu ? 'Персонажи' : 'Characters',
+    protagonist: isRu ? 'Ваш персонаж' : 'Your Character',
     startStory: isRu ? 'Начать историю' : 'Start Story',
     continueStory: isRu ? 'Продолжить' : 'Continue',
     restartStory: isRu ? 'Перечитать заново' : 'Read Again',
     bookmarkAction: isRu ? 'Закладка' : 'Bookmark',
+    gender: isRu ? 'Пол' : 'Gender',
+    age: isRu ? 'Возраст' : 'Age',
+    archetype: isRu ? 'Архетип' : 'Archetype',
+  };
+
+  const protag = story?.protagonist;
+  const genderLabel = (g) => {
+    if (!g || g === 'Unknown') return isRu ? 'Не определён' : 'Unspecified';
+    if (g === 'Male') return isRu ? 'Мужской' : 'Male';
+    if (g === 'Female') return isRu ? 'Женский' : 'Female';
+    return g;
   };
 
   return (
@@ -57,6 +69,39 @@ export default function StoryDetail({
             <span className="bg-primary px-3 py-1 rounded-full text-xs font-semibold text-primary-foreground">18+</span>
           )}
         </div>
+
+        {/* ─── Protagonist section ─── */}
+        {protag && (
+          <div className="border-t border-border/70 py-4">
+            <h3 className="font-semibold text-foreground mb-3">{t.protagonist}</h3>
+            <div className="bg-muted/50 border border-border/70 rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-full bg-primary/15 flex items-center justify-center text-sm font-bold text-primary border border-primary/30">
+                  {(protag.name || '?').charAt(0)}
+                </div>
+                <div>
+                  <p className="font-bold text-sm text-foreground">{protag.name}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    {protag.gender && protag.gender !== 'Unknown' && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">
+                        {genderLabel(protag.gender)}
+                      </span>
+                    )}
+                    {protag.age && (
+                      <span className="text-[10px] text-muted-foreground">{t.age}: {protag.age}</span>
+                    )}
+                    {protag.archetype && (
+                      <span className="text-[10px] text-muted-foreground">• {protag.archetype}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              {protag.description && (
+                <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">{protag.description}</p>
+              )}
+            </div>
+          </div>
+        )}
         
         <div className="border-t border-border/70 py-4">
           <h3 className="font-semibold text-foreground mb-4">{t.characters}</h3>

@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 
-const LANGUAGES = [
+const LANGUAGES_EN = [
   { code: 'en', label: 'English' },
   { code: 'ru', label: 'Russian' },
+];
+const LANGUAGES_RU = [
+  { code: 'en', label: 'Английский' },
+  { code: 'ru', label: 'Русский' },
 ];
 
 export default function SettingsModal({ currentUser, language, onSave, onClose, onLogout }) {
@@ -151,7 +155,7 @@ export default function SettingsModal({ currentUser, language, onSave, onClose, 
               onChange={(e) => setSelectedLanguage(e.target.value)}
               className="w-full bg-muted/80 border border-border/80 rounded-xl px-4 py-3 text-sm text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
             >
-              {LANGUAGES.map((lang) => (
+              {(isRu ? LANGUAGES_RU : LANGUAGES_EN).map((lang) => (
                 <option key={lang.code} value={lang.code}>
                   {lang.label}
                 </option>

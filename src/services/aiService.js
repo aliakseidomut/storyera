@@ -7,7 +7,8 @@ export const aiService = {
   
   // Generate an image based on the current scene
   async generateImage(prompt) {
-    const style = "Cinematic digital art, high-quality, detailed textures, warm golden-hour lighting, atmospheric lighting, evocative, consistent character art style, 8k resolution, detailed background environments, immersive.";
+    // Compose images to look good on any screen width: centered subject, safe margins, no important details on edges.
+    const style = "Cinematic digital art, high-quality, detailed textures, atmospheric lighting, evocative, consistent character art style, detailed environments. Composition: centered main subject, safe margins, minimal edge-cropping risk, balanced framing, readable at mobile and ultrawide screens.";
     const fullPrompt = `${prompt}, ${style}`;
     
     try {
@@ -35,53 +36,63 @@ export const aiService = {
     }
   },
   
-  // Get AI response with scene and choice options
+  // ─── Compact AI request: system + summary + last scene + user choice ───
   async getAIResponse(userMessage, options = {}) {
     const {
-      storyData = {}, 
+      storyData = {},
       characterData = {},
       storyState = {},
-      lastSceneSummary = '',
-      conversationHistory = [],
-      flirtLevel = 50,
-      boundariesLevel = 50,
-      language = 'en'
+      storySummary = '',   // compressed recap of all previous events
+      lastScene = '',      // full text of the most recent AI block
+      language = 'en',
+      currentChapter = 0   // explicitly tracked chapter number (persisted per language)
     } = options;
 
-    // Build comprehensive system prompt
-    const systemPrompt = this.buildSystemPrompt({
-      storyData,
-      characterData,
-      storyState,
-      lastSceneSummary,
-      flirtLevel,
-      boundariesLevel,
-      language
-    });
+    const systemPrompt = this.buildSystemPrompt({ storyData, characterData, storyState, language });
 
-    // Build conversation messages
-    const messages = [
-      { role: 'system', content: systemPrompt }
-    ];
+    // Build minimal message array (≤4 messages total)
+    let finalSystemPrompt = systemPrompt;
+    if (currentChapter > 0) {
+      const isRuLang = language === 'ru';
+      finalSystemPrompt += `\n\n---\nCURRENT CHAPTER: ${currentChapter}. ${isRuLang
+        ? `Ты сейчас в Главе ${currentChapter}. Если переходишь к новой главе, она ОБЯЗАТЕЛЬНО должна быть Глава ${currentChapter + 1}. НИКОГДА не пропускай номера глав. ЗАПРЕЩЕНО повторять Главу ${currentChapter} или пропускать к Главе ${currentChapter + 2}.`
+        : `You are currently in Chapter ${currentChapter}. If transitioning to a new chapter, it MUST be Chapter ${currentChapter + 1}. NEVER skip chapter numbers. Do NOT repeat Chapter ${currentChapter} or jump to Chapter ${currentChapter + 2}.`}`;
+    }
+    const messages = [{ role: 'system', content: finalSystemPrompt }];
 
-    // Add conversation history
-    conversationHistory.forEach(msg => {
+    // 1) Compressed story-so-far (if any)
+    if (storySummary) {
       messages.push({
-        role: msg.role === 'user' ? 'user' : 'assistant',
-        content: msg.content
+        role: 'assistant',
+        content: `[STORY SO FAR]\n${storySummary}`
       });
-    });
+    }
 
-    // Add current user message
+    // 2) Full last generated scene (gives AI the immediate context)
+    if (lastScene) {
+      messages.push({
+        role: 'assistant',
+        content: lastScene
+      });
+    }
+
+    // 3) User's current choice / message
     messages.push({ role: 'user', content: userMessage });
 
     try {
+      if (import.meta?.env?.DEV) {
+        // eslint-disable-next-line no-console
+        console.log('[Gemini] compact messages count:', messages.length,
+          '| summary len:', storySummary.length,
+          '| lastScene len:', lastScene.length);
+      }
+
       const response = await fetch(API_CONFIG.BASE_URL, {
         method: 'POST',
         headers: API_CONFIG.getHeaders(),
         body: JSON.stringify({
           model: API_CONFIG.MODEL,
-          messages: messages,
+          messages,
           temperature: API_CONFIG.DEFAULT_TEMPERATURE
         })
       });
@@ -93,12 +104,9 @@ export const aiService = {
       }
 
       const data = await response.json();
-      console.log('Gemini Response:', data);
-      
       const text = data.choices?.[0]?.message?.content;
-      
+
       if (!text) {
-        console.warn('No content in Gemini response');
         return {
           scene: language === 'ru'
             ? "История продолжается... Ваш выбор определит, что будет дальше."
@@ -106,73 +114,152 @@ export const aiService = {
           choices: language === 'ru' ? ["Продолжить", "Подождать", "Ответить"] : ["Continue", "Wait", "Respond"]
         };
       }
-      
-      // Parse response to extract scene and choices
+
       return this.parseAIResponse(text, language);
     } catch (error) {
       console.error('AI Error:', error);
       return {
-        scene: language === 'ru'
-          ? `Ошибка: ${error.message}. Проверьте настройки API.`
-          : `Error: ${error.message}. Please check your API configuration.`,
-        choices: language === 'ru' ? ["Повторить", "Продолжить", "Пропустить"] : ["Try again", "Continue", "Skip"]
+        error: true,
+        scene: '',
+        choices: language === 'ru' ? ["Повторить"] : ["Try again"]
       };
     }
   },
 
-  buildSystemPrompt({ storyData, characterData, storyState, lastSceneSummary, flirtLevel, boundariesLevel, language = 'en' }) {
-    const outputLanguageInstruction = language === 'ru'
-      ? 'ЯЗЫК: Отвечай строго на русском языке.'
-      : 'LANGUAGE: Respond strictly in English.';
-    
-    // Dynamic cast/chapters from story object
-    const cast = storyData?.characters?.map(c => `${c.name}: ${c.role}`).join('; ') || 'No cast provided';
-    const chapters = storyData?.plot?.chapters ? `CHAPTER LIST: ${storyData.plot.chapters.join(', ')}` : '';
-    
-    return `🎯 CORE PURPOSE
-Interactive psychological simulator disguised as an emotionally intense narrative.
-Goal: Explore behavioral strategies, test boundaries, and experience transformation.
+  // ─── Background summary generation (fire-and-forget after response) ───
+  async generateSummary(prevSummary, newScene, userChoice, language = 'en') {
+    const instruction = language === 'ru'
+      ? `Ты — ассистент по сжатию нарратива. Возьми предыдущее саммари и новую сцену и создай ОДНО обновлённое саммари длиной 200-400 слов. Сохрани: ключевые события, решения героя, эмоциональное состояние, текущую главу и номер, имена персонажей и их отношения. Не добавляй комментарии — только саммари. Пиши на русском.`
+      : `You are a narrative compressor. Take the previous summary and the new scene and produce ONE updated summary of 200-400 words. Preserve: key events, hero decisions, emotional state, current chapter & number, character names & relationships. Output ONLY the summary, no commentary.`;
 
-📊 NARRATIVE CONSTRAINTS (CRITICAL)
-- Structure: Divided into 12 chapters. You MUST track which chapter the user is in.
-- Chapter Header: You MUST begin your response with "*Глава X - [Название главы]*" inside the SCENE block.
-- Pacing: Choices are offered strictly every 800–1,500 words. DO NOT offer choices until a major turning point is reached.
-- Visuals: If you describe a moment of extreme tension, trigger an image request.
-- Balancing: 50/50 balance between vivid scene descriptions (atmosphere/sensations) and sharp, meaningful dialogue.
-- Ending: Track progression (max ~10k words) and steer toward resolution by chapter 12.
+    const userContent = [
+      prevSummary ? `PREVIOUS SUMMARY:\n${prevSummary}` : '',
+      `USER CHOSE: ${userChoice}`,
+      `NEW SCENE:\n${newScene}`
+    ].filter(Boolean).join('\n\n');
 
-🎭 ROLE & STYLE
-You are a master of high-quality, immersive adult (18+) interactive fiction. 
-Style: 70% bold/provocative/erotic, 30% psychological depth. 
-Avoid: clichés, sterile writing, template romance. Keep it visceral.
+    try {
+      const response = await fetch(API_CONFIG.BASE_URL, {
+        method: 'POST',
+        headers: API_CONFIG.getHeaders(),
+        body: JSON.stringify({
+          model: API_CONFIG.MODEL,
+          messages: [
+            { role: 'system', content: instruction },
+            { role: 'user', content: userContent }
+          ],
+          temperature: 0.3
+        })
+      });
 
-⚡️ EMOTIONAL DYNAMICS
-- Constant fluctuation of power and tension: intrigue → tension → desire → doubt → risk → closeness → distance → power.
-- Never go flat. Never return to neutral after tension starts.
+      if (!response.ok) return prevSummary || '';
+      const data = await response.json();
+      const summary = data.choices?.[0]?.message?.content?.trim();
+      return summary || prevSummary || '';
+    } catch (e) {
+      console.error('Summary generation error:', e);
+      return prevSummary || '';
+    }
+  },
 
-🎬 RESPONSE STRUCTURE
+  // ─── Compact system prompt (no full history, no heavy payload) ───
+  buildSystemPrompt({ storyData, characterData, storyState, language = 'en' }) {
+    const isRu = language === 'ru';
+
+    // Compact cast: just names + roles
+    const cast = storyData?.characters?.map(c => `${c.name}: ${c.role}`).join('; ') || '';
+    // Compact chapter list (just names, no descriptions)
+    const chapters = storyData?.plot?.chapters?.join(', ') || '';
+    // Compact protagonist
+    const protagGender = (characterData?.gender || storyState?.gender || '').toString();
+    const protag = characterData
+      ? `${characterData.name || '?'}, ${protagGender || '?'}, ${characterData.archetype || '?'}`
+      : '';
+
+    // Language-specific tokens so the AI doesn't mix languages
+    const chapterWord = isRu ? 'Глава' : 'Chapter';
+    const langInstruction = isRu
+      ? 'ЯЗЫК: Весь текст, диалоги и варианты выбора должны быть СТРОГО на русском языке. Никакого английского.'
+      : 'LANGUAGE: ALL text, dialogue and choices MUST be strictly in English. No Russian.';
+
+    const choiceExamplesCorrect = isRu
+      ? `  1. Шагнуть к ней и взять за руку
+  2. Отступить и выждать
+  3. Сказать правду прямо в глаза`
+      : `  1. Step toward her and take her hand
+  2. Step back and wait
+  3. Tell the truth straight to her face`;
+
+    const choiceExamplesWrong = isRu
+      ? `  1. [Дипломатия] Попытаться договориться
+  2. [Сила] Ударить первым`
+      : `  1. [Diplomacy] Try to negotiate
+  2. [Force] Strike first`;
+
+    const genderInstruction = isRu
+      ? `ПОЛ ГЕРОЯ: ${protagGender === 'Female' ? 'Женский' : protagGender === 'Male' ? 'Мужской' : 'Не указан'}. ВСЕ упоминания, местоимения и описания героя должны соответствовать выбранному полу.`
+      : `PROTAGONIST GENDER: ${protagGender || 'Unspecified'}. ALL pronouns, body descriptions, perspective, and interactions MUST align with this gender.`;
+
+    return `${langInstruction}
+${genderInstruction}
+
+ROLE: Master of immersive, explicit adult (18+) interactive fiction. 80% bold/provocative/erotic, 20% psychological depth. Visceral, raw, no censorship, no clichés.
+
+RULES:
+- The story is divided into chapters. The chapter list provided is a GUIDELINE, not a strict requirement. You may add extra chapters (13, 14, 15…) if the story needs more space to conclude naturally.
+- Track current chapter. Output "*${chapterWord} X - Name*" ONLY at chapter start.
+- Chapter numbering: ALWAYS use Arabic numerals (1, 2, 3…). NEVER use Roman numerals (I, II, III). Example: "*${chapterWord} 3 - ${isRu ? 'Название' : 'Title'}*", NOT "*${chapterWord} III - ${isRu ? 'Название' : 'Title'}*".
+- CHOICES only at major turning points (2-3 short action lines).
+- Never output meta-instructions, placeholders, UI triggers, analysis, tone tags, or commentary.
+- Output reads like a real book page: scene + dialogue + choices when needed.
+- Emotional dynamics: intrigue→tension→desire→doubt→risk→closeness→distance→power. Never go flat.
+
+STORY ENDING (CRITICAL):
+- The total story should be approximately 250-350 pages of medium text. Do NOT loop or repeat chapters.
+- As the story progresses past the midpoint, begin building toward a satisfying, logical conclusion.
+- When you write the FINAL scene of the story (the true ending), output the marker [THE END] on a separate line at the very end of the scene, INSTEAD of CHOICES.
+- The ending must feel earned — resolve major plot threads, character arcs, and emotional tension.
+- Do NOT end abruptly. Write a full, satisfying final scene with closure.
+
+EROTIC CONTENT (CRITICAL):
+- Every 2-3 scenes MUST include at least one explicit erotic or intensely sensual moment.
+- Do NOT fade to black. Do NOT skip or summarize intimate scenes. Write them in full, vivid detail.
+- Describe physical sensations, breathing, touch, skin, warmth, closeness — raw and unapologetic.
+- Erotic tension should build naturally from the narrative, not feel forced.
+
+SCENE LENGTH (CRITICAL — follow strictly):
+- Each scene MUST contain AT LEAST 15-20 full paragraphs. Short responses are unacceptable.
+- Do NOT rush. Do NOT skip ahead. Do NOT summarize events. Show everything in real-time.
+- Every scene must include ALL of the following in detail:
+  • Setting & atmosphere (2-3 paragraphs): lighting, sounds, smells, textures, weather, surroundings.
+  • Character actions & body language (3-4 paragraphs): micro-expressions, gestures, posture shifts, physical proximity.
+  • Dialogue (4-6 exchanges minimum): realistic, subtext-rich, with pauses and reactions between lines.
+  • Inner monologue & sensations (2-3 paragraphs): protagonist's thoughts, doubts, desires, physical sensations.
+  • Tension escalation (2-3 paragraphs): build conflict or desire through pacing, unexpected details, power shifts.
+- Write as if you're being paid per paragraph. More detail = better. Fill the scene completely before offering choices.
+
+CHOICES FORMAT (CRITICAL):
+- Each choice is a short, clean action line — what the reader would say or do next.
+- NEVER add labels, tags, categories, or brackets before choices.
+- Example of CORRECT choices:
+${choiceExamplesCorrect}
+- Example of WRONG choices:
+${choiceExamplesWrong}
+
+FORMAT:
 SCENE:
-*[Глава X - Название главы]*
-[Immersive narrative: 800-1500 words, sensory-rich, erotic, psychological]
+*${chapterWord} X - Name* (only at new chapter)
+[long, immersive narrative — minimum 15-20 paragraphs]
 
-CHOICES: (Only show if a major turning point is reached)
-1. [Option]
-2. [Option]
-3. [Option]
-
-CONTEXT SNAPSHOT (Must include at the end):
-- Current Chapter: ...
-- User Behavioral Profile: ...
-- Hidden Parameters: ${JSON.stringify(storyState)}
-- Unresolved Threads: ...
+CHOICES:
+1. action text
+2. action text
+3. action text
 
 ---
-CAST: ${cast}
-${chapters}
-User Profile: ${JSON.stringify(characterData)}
-Last Event: ${lastSceneSummary}
-
-${outputLanguageInstruction}`;
+${cast ? `CAST: ${cast}` : ''}
+${chapters ? `CHAPTERS: ${chapters}` : ''}
+${protag ? `PROTAGONIST: ${protag}` : ''}`;
   },
 
   // Parse AI response to extract scene and choices
@@ -180,8 +267,17 @@ ${outputLanguageInstruction}`;
     if (!text || typeof text !== 'string') {
       return {
         scene: language === 'ru' ? "История продолжается..." : "The story continues...",
-        choices: language === 'ru' ? ["Продолжить", "Подождать", "Ответить"] : ["Continue", "Wait", "Respond"]
+        choices: language === 'ru' ? ["Продолжить", "Подождать", "Ответить"] : ["Continue", "Wait", "Respond"],
+        isEnd: false
       };
+    }
+
+    // ─── Detect [THE END] marker ───
+    const endMarkerRe = /\[THE END\]/i;
+    const isEnd = endMarkerRe.test(text);
+    if (isEnd) {
+      // Strip the marker from the text
+      text = text.replace(endMarkerRe, '').trim();
     }
 
     // Try to find SCENE: and CHOICES: markers
@@ -226,6 +322,47 @@ ${outputLanguageInstruction}`;
           .filter(line => line.length > 0 && line.length < 100)
           .slice(0, 3);
       }
+    } else {
+      // Heuristic: detect trailing numbered/bulleted options without CHOICES: marker
+      const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+      // Walk from bottom to top to find a contiguous block of 2-6 choice-like lines
+      const choiceLike = (ln) => /^\s*(?:\d+[\.\)]|[-•])\s+(.+)$/.test(ln);
+      let end = lines.length - 1;
+      // Skip trailing empty lines
+      while (end >= 0 && lines[end].trim() === '') end--;
+      let start = end;
+      let count = 0;
+      while (start >= 0 && choiceLike(lines[start])) {
+        count++;
+        start--;
+      }
+      // Consider it choices if we have at least 2 lines
+      if (count >= 2 && count <= 6) {
+        const block = lines.slice(start + 1, end + 1);
+        const cleaned = block
+          .map(l => l.replace(/^\s*(?:\d+[\.\)]|[-•])\s+/, '').trim())
+          .filter(s => s.length > 0 && s.length < 220);
+        if (cleaned.length >= 2) {
+          choices = cleaned.slice(0, 3);
+          // Scene is everything before the block
+          scene = lines.slice(0, start + 1).join('\n').trim();
+        }
+      }
+    }
+
+    // ── Detect chapter number in the response to track state ──
+    let detectedChapter = null;
+    const chapterNumMatch = scene.match(/(?:Глава|Chapter)\s+(\d+)/i);
+    if (chapterNumMatch) detectedChapter = parseInt(chapterNumMatch[1], 10);
+
+    // If story ended, return no choices
+    if (isEnd) {
+      return {
+        scene: scene || (language === 'ru' ? "История продолжается..." : "The story continues..."),
+        choices: [],
+        isEnd: true,
+        detectedChapter
+      };
     }
 
     while (choices.length < 3) {
@@ -236,9 +373,14 @@ ${outputLanguageInstruction}`;
       choices.push(defaultChoice);
     }
 
+    // Clean up choices from bracketed tags like [Дипломатия]
+    choices = choices.map(choice => choice.replace(/\[.*?\]\s*/g, '').trim());
+
     return {
       scene: scene || (language === 'ru' ? "История продолжается..." : "The story continues..."),
-      choices: choices.slice(0, 3)
+      choices: choices.slice(0, 3),
+      isEnd: false,
+      detectedChapter
     };
   },
 
