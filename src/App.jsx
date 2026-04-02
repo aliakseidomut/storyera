@@ -95,6 +95,28 @@ export default function App() {
     try { localStorage.setItem('storyera_theme', theme); } catch { /* ignore */ }
   }, [theme]);
 
+  // ──── Analytics: fire SPA pageviews on view/story/language changes ────
+  useEffect(() => {
+    try {
+      const view = currentView;
+      const storyPart = currentStory?.id ? `/story/${currentStory.id}` : '';
+      const lang = (activeStoryLang || language) || 'en';
+      const pagePath = `/${view}${storyPart}?lang=${lang}`;
+      if (window.gtag) {
+        window.gtag('event', 'page_view', {
+          page_title: document.title,
+          page_path: pagePath
+        });
+      }
+      if (window.ym) {
+        const fullUrl = `${window.location.origin}${pagePath}`;
+        window.ym(108368041, 'hit', fullUrl);
+      }
+    } catch {
+      // no-op
+    }
+  }, [currentView, currentStory?.id, activeStoryLang, language]);
+
   /* ──── Load progress + bookmarks + completed when user changes ──── */
   useEffect(() => {
     if (currentUser?.id || currentUser?.email) {
