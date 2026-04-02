@@ -60,9 +60,8 @@ export class DatabaseService implements OnModuleInit {
         completed_at TEXT NOT NULL
       )`);
 
-      /* ─── Stories (re-seeded every startup) ─── */
-      this.db.run(`DROP TABLE IF EXISTS stories`);
-      this.db.run(`CREATE TABLE stories (
+      /* ─── Stories (persistent) ─── */
+      this.db.run(`CREATE TABLE IF NOT EXISTS stories (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
         description TEXT NOT NULL,
@@ -79,7 +78,13 @@ export class DatabaseService implements OnModuleInit {
         translations_json TEXT
       )`);
       
-      this.seedStories();
+      // Seed only if empty
+      this.db.get('SELECT COUNT(*) as cnt FROM stories', [], (err, row: any) => {
+        if (err) return;
+        if (!row || (row.cnt || 0) === 0) {
+          this.seedStories();
+        }
+      });
     });
   }
 

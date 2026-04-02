@@ -28,6 +28,8 @@ export const DatabaseService = {
     return await this.parseJsonResponse(response, []);
   },
 
+  // (admin CRUD is called directly via fetch in AdminPage)
+
   // Save chat history (legacy, unused)
   async saveChatHistory(storyId, messages) {
     return { success: true };

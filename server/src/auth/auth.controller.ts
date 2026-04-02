@@ -39,6 +39,33 @@ export class AuthController {
     return this.authService.getStories();
   }
 
+  /* ──── Admin stories CRUD (simple password gate) ─── */
+  private checkAdminPassword(pass?: string) {
+    if (pass !== '1209348756') {
+      throw new UnauthorizedException('Invalid admin password');
+    }
+  }
+
+  @Post('story-create')
+  async storyCreate(@Body() body: any) {
+    this.checkAdminPassword(body?.password);
+    return this.authService.createStory(body?.story || {});
+  }
+
+  @Post('story-update')
+  async storyUpdate(@Body() body: any) {
+    this.checkAdminPassword(body?.password);
+    if (!body?.id) throw new UnauthorizedException('Missing story id');
+    return this.authService.updateStory(Number(body.id), body?.story || {});
+  }
+
+  @Post('story-delete')
+  async storyDelete(@Body() body: any) {
+    this.checkAdminPassword(body?.password);
+    if (!body?.id) throw new UnauthorizedException('Missing story id');
+    return this.authService.deleteStory(Number(body.id));
+  }
+
   /* ──── Progress (language-aware) ──── */
 
   @Post('all-progress')

@@ -252,6 +252,63 @@ export class AuthService {
     });
   }
 
+  async createStory(payload: any) {
+    const db = this.dbService.getDatabase();
+    const now = new Date().toISOString();
+    const {
+      title, description, category, tags = [], image = '',
+      rating = 5.0, plays = 0, mature = 1,
+      protagonist = {}, characters = [], plot = {}, translations = {}
+    } = payload || {};
+    return new Promise<{ success: boolean; id: number }>((resolve, reject) => {
+      db.run(
+        `INSERT INTO stories (title, description, category, tags_json, image, rating, plays, mature, created_at, protagonist_json, characters_json, plot_json, translations_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          title, description, category, JSON.stringify(tags), image, rating, plays, mature, now,
+          JSON.stringify(protagonist), JSON.stringify(characters), JSON.stringify(plot), JSON.stringify(translations)
+        ],
+        function (err) {
+          if (err) return reject(err);
+          resolve({ success: true, id: this.lastID });
+        }
+      );
+    });
+  }
+
+  async updateStory(id: number, payload: any) {
+    const db = this.dbService.getDatabase();
+    const {
+      title, description, category, tags = [], image = '',
+      rating = 5.0, plays = 0, mature = 1,
+      protagonist = {}, characters = [], plot = {}, translations = {}
+    } = payload || {};
+    return new Promise<{ success: boolean }>((resolve, reject) => {
+      db.run(
+        `UPDATE stories SET title = ?, description = ?, category = ?, tags_json = ?, image = ?, rating = ?, plays = ?, mature = ?, protagonist_json = ?, characters_json = ?, plot_json = ?, translations_json = ? WHERE id = ?`,
+        [
+          title, description, category, JSON.stringify(tags), image, rating, plays, mature,
+          JSON.stringify(protagonist), JSON.stringify(characters), JSON.stringify(plot), JSON.stringify(translations),
+          id
+        ],
+        function (err) {
+          if (err) return reject(err);
+          resolve({ success: true });
+        }
+      );
+    });
+  }
+
+  async deleteStory(id: number) {
+    const db = this.dbService.getDatabase();
+    return new Promise<{ success: boolean }>((resolve, reject) => {
+      db.run(`DELETE FROM stories WHERE id = ?`, [id], function (err) {
+        if (err) return reject(err);
+        resolve({ success: true });
+      });
+    });
+  }
+
   /* ──────────────── BOOKMARKS ──────────────── */
 
   async addBookmark(user_id: number, story_id: number) {

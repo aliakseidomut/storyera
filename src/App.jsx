@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { DatabaseService } from './services/DatabaseService.js';
 import { aiService } from './services/aiService.js';
+import AdminPage from './components/AdminPage.jsx';
 
 // Components
 import CreateModal from './components/CreateModal.jsx';
@@ -76,6 +77,8 @@ export default function App() {
       return 'en';
     }
   });
+  // Track the actual story language (may differ from UI language when continuing a story in another language)
+  const [activeStoryLang, setActiveStoryLang] = useState(null);
 
   // ──── Theme (dark/light) with persistence ────
   const [theme, setTheme] = useState(() => {
@@ -176,10 +179,14 @@ export default function App() {
   const [storySummary, setStorySummary] = useState('');
   const [lastScene, setLastScene] = useState('');
   const [currentChapterNum, setCurrentChapterNum] = useState(0);
-  // Track the actual story language (may differ from UI language when continuing a story in another language)
-  const [activeStoryLang, setActiveStoryLang] = useState(null);
 
   useEffect(() => { loadStories(); if (currentUser) fetchMe(); }, []);
+  // Simple route handling for /admin
+  useEffect(() => {
+    if (window?.location?.pathname === '/admin') {
+      setCurrentView('admin');
+    }
+  }, []);
 
   const fetchMe = async () => {
     try {
@@ -566,7 +573,7 @@ export default function App() {
 
   return (
     <div className="fixed inset-0 w-full h-[100dvh] bg-muted text-foreground flex overflow-hidden">
-      {currentUser && <Sidebar currentView={currentView} onViewChange={setCurrentView} language={language} />}
+      {currentUser && currentView !== 'admin' && <Sidebar currentView={currentView} onViewChange={setCurrentView} language={language} />}
 
       <div className="flex-1 h-[100dvh] bg-card text-card-foreground relative flex flex-col shadow-2xl shadow-[hsl(var(--background)/0.45)]">
         {currentUser && (
@@ -621,6 +628,9 @@ export default function App() {
             )}
             {currentUser && currentView === 'settings' && (
               <SettingsPage currentUser={currentUser} language={language} theme={theme} onThemeChange={setTheme} onLanguageChange={handleLanguageChange} onAvatarChange={handleAvatarChange} onLogout={handleLogout} />
+            )}
+            {currentView === 'admin' && (
+              <AdminPage />
             )}
           </div>
         </main>
